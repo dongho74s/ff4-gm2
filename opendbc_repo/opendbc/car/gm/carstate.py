@@ -14,7 +14,7 @@ TransmissionType = structs.CarParams.TransmissionType
 NetworkLocation = structs.CarParams.NetworkLocation
 GearShifter = structs.CarState.GearShifter
 STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
-LongCtrlState = car.CarControl.Actuators.LongControlState # kans
+
 BUTTONS_DICT = {CruiseButtons.RES_ACCEL: ButtonType.accelCruise, CruiseButtons.DECEL_SET: ButtonType.decelCruise,
                 CruiseButtons.MAIN: ButtonType.mainCruise, CruiseButtons.CANCEL: ButtonType.cancel,
                 CruiseButtons.GAP_DIST: ButtonType.gapAdjustCruise}
@@ -105,10 +105,7 @@ class CarState(CarStateBase):
     else:
       ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(pt_cp.vl["ECMPRDNL2"]["PRNDL2"], None))
 
-    if self.CP.flags & GMFlags.NO_ACCELERATOR_POS_MSG.value:
-      ret.brake = pt_cp.vl["EBCMBrakePedalPosition"]["BrakePedalPosition"] / 0xd0
-    else:
-      ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
+    ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
     if self.CP.networkLocation == NetworkLocation.fwdCamera:
       ret.brakePressed = pt_cp.vl["ECMEngineStatus"]["BrakePressed"] != 0
     else:
@@ -171,7 +168,7 @@ class CarState(CarStateBase):
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
       ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
       # openpilot controls nonAdaptive when not pcmCruise
-      if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR: 
+      if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR:
         ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
     if self.CP.carFingerprint in CC_ONLY_CAR:
       ret.accFaulted = False
@@ -179,19 +176,8 @@ class CarState(CarStateBase):
       ret.cruiseState.enabled = pt_cp.vl["ECMCruiseControl"]["CruiseActive"] != 0
 
     self.pcm_acc_status = pt_cp.vl["AcceleratorPedal2"]["CruiseState"]
-    if self.CP.carFingerprint in (CAR.CHEVROLET_TRAX, CAR.CHEVROLET_TRAILBLAZER, CAR.CHEVROLET_TRAILBLAZER_CC): 
-      ret.vCluRatio = 0.96
-    elif self.CP.flags & GMFlags.SPEED_RELATED_MSG.value:
-      # kans: use cluster speed & vCluRatio(longitudialPlanner)
-      self.is_metric = Params().get_bool("IsMetric")
-      speed_conv = CV.MPH_TO_MS if self.is_metric else CV.KPH_TO_MS
-      cluSpeed = pt_cp.vl["SPEED_RELATED"]["ClusterSpeed"]
-      ret.vEgoCluster = cluSpeed * speed_conv
-      vEgoClu, aEgoClu = self.update_clu_speed_kf(ret.vEgoCluster)
-      if self.CP.carFingerprint in CAR.CHEVROLET_VOLT:
-        ret.vCluRatio = 1.0 #(ret.vEgo / vEgoClu) if (vEgoClu > 3. and ret.vEgo > 3.) else 1.0
-      else:
-        ret.vCluRatio = 0.96
+
+    ret.vCluRatio = 1.0 if self.CP.carFingerprint in CAR.CHEVROLET_VOLT else 0.96
 
     # Don't add event if transitioning from INIT, unless it's to an actual button
     buttonEvents = [] # kans
@@ -224,21 +210,14 @@ class CarState(CarStateBase):
       ("PSCMSteeringAngle", 100),
       ("ECMAcceleratorPos", 80),
     ]
-    if CP.flags & GMFlags.SPEED_RELATED_MSG.value:
-      pt_messages.append(("SPEED_RELATED", 20))
 
     if CP.enableBsm:
       pt_messages.append(("BCMBlindSpotMonitor", 10))
 
-    # Used to read back last counter sent to PT by camera
     if CP.networkLocation == NetworkLocation.fwdCamera:
       pt_messages += [
         ("ASCMLKASteeringCmd", 0),
       ]
-    # 이 부분은 위 조건아래 들어와야 하는 것이 아니므로 내어쓰기 해야 합니다.
-    if CP.flags & GMFlags.NO_ACCELERATOR_POS_MSG.value:
-      pt_messages.remove(("ECMAcceleratorPos", 80))
-      pt_messages.append(("EBCMBrakePedalPosition", 100))
 
     if CP.transmissionType == TransmissionType.direct:
       pt_messages += [

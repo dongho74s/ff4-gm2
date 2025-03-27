@@ -189,11 +189,6 @@ def create_lka_icon_command(bus, active, critical, steer):
     dat = b"\x00\x00\x00"
   return CanData(0x104c006c, dat, bus)
 
-def create_regen_paddle_command(packer, bus):
-  values = {
-    "RegenPaddle": 0x20, #이 값은 패들의 강도일 가능성이 있음.
-  }
-  return packer.make_can_msg("EBCMRegenPaddle", bus, values)
 
 def create_gm_cc_spam_command(packer, controller, CS, actuators):
   if controller.params_.get_bool("IsMetric"):
