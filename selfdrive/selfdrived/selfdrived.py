@@ -126,7 +126,7 @@ class SelfdriveD:
     self.atc_type_last = ""
 
     # Determine startup event
-    self.startup_event = EventName.startup if build_metadata.openpilot.comma_remote and build_metadata.tested_channel else EventName.startupMaster
+    self.startup_event = EventName.startup
     if not car_recognized:
       self.startup_event = EventName.startupNoCar
     elif car_recognized and self.CP.passive:
@@ -384,8 +384,7 @@ class SelfdriveD:
 
       if self.sm['modelV2'].frameDropPerc > 20:
         self.events.add(EventName.modeldLagging)
-    if self.sm.frame == 550 and Params().get("NNFFModelName", encoding='utf-8') is not None:
-      self.events.add(EventName.torqueNNLoad)
+
     # decrement personality on distance button press
     #if self.CP.openpilotLongitudinalControl:
     #  if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents):
