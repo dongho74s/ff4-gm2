@@ -59,6 +59,7 @@ class CarState(CarStateBase):
     pt_cp = can_parsers[Bus.pt]
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
+    lowspeed_cp = can_parsers[Bus.lowspeed]
 
     ret = structs.CarState()
 
@@ -74,8 +75,13 @@ class CarState(CarStateBase):
       self.cruise_buttons = CruiseButtons.GAP_DIST
 
     if self.CP.enableBsm:
-      ret.leftBlindspot = pt_cp.vl["BCMBlindSpotMonitor"]["LeftBSM"] == 1
-      ret.rightBlindspot = pt_cp.vl["BCMBlindSpotMonitor"]["RightBSM"] == 1
+      if self.CP.carFingerprint in CAR.CHEVROLET_VOLT:
+        ret.leftBlindspot = bool(lowspeed_cp.vl["LeftRadar"]["BSM_Indicator_Light"])
+        ret.rightBlindspot = bool(lowspeed_cp.vl["RightRadar"]["BSM_Indicator_Light"])
+
+      else:
+        ret.leftBlindspot = bool(pt_cp.vl["BCMBlindSpotMonitor"]["LeftBSM"])
+        ret.rightBlindspot = bool(pt_cp.vl["BCMBlindSpotMonitor"]["RightBSM"])
 
     # Variables used for avoiding LKAS faults
     self.loopback_lka_steering_cmd_updated = len(loopback_cp.vl_all["ASCMLKASteeringCmd"]["RollingCounter"]) > 0
@@ -194,6 +200,7 @@ class CarState(CarStateBase):
 
   @staticmethod
   def get_can_parsers(CP):
+    print(f"Loaded DBC for LOWSPEED: {DBC[CP.carFingerprint][Bus.lowspeed]}")
     pt_messages = [
       ("BCMTurnSignals", 1),
       ("ECMPRDNL2", 10),
@@ -211,8 +218,13 @@ class CarState(CarStateBase):
       ("ECMAcceleratorPos", 80),
     ]
 
+    lowspeed_messages = []
     if CP.enableBsm:
-      pt_messages.append(("BCMBlindSpotMonitor", 10))
+      if CP.carFingerprint in CAR.CHEVROLET_VOLT:
+        lowspeed_messages.append(("LeftRadar", 50))
+        lowspeed_messages.append(("RightRadar", 50))
+      else:
+        pt_messages.append(("BCMBlindSpotMonitor", 10))
 
     if CP.networkLocation == NetworkLocation.fwdCamera:
       pt_messages += [
@@ -253,6 +265,7 @@ class CarState(CarStateBase):
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
+      Bus.lowspeed: CANParser(DBC[CP.carFingerprint][Bus.lowspeed], lowspeed_messages, 3),
       Bus.loopback: CANParser(DBC[CP.carFingerprint][Bus.pt], loopback_messages, 128),
     }
 
