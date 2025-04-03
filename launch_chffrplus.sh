@@ -9,7 +9,14 @@ if [ ! -f "./installer/boot_finish" ]; then
   chmod 644 /system/etc/fonts.xml
   chmod 644 /system/fonts/NanumGothic*
   cp -f ./installer/bootanimation.zip /system/media/
+  chmod 700 ./t.sh
+  chmod 700 ./unix.sh
+  chmod 700 ./tune.py
   chmod 744 /system/media/bootanimation.zip
+  chmod 700 ./selfdrive/ui/qt/spinner
+  chmod 700 ./selfdrive/ui/soundd/soundd
+  chmod 700 ./selfdrive/ui/soundd/sound.*
+  chmod 700 ./scripts/*.sh
   touch ./installer/boot_finish
 
 elif [ "$(getprop persist.sys.locale)" != "ko-KR" ]; then
@@ -35,22 +42,16 @@ source "$BASEDIR/launch_env.sh"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 function two_init {
-
-  # mount -o remount,rw /system
+  mount -o remount,rw /system
   if [ ! -f /ONEPLUS ] && ! $(grep -q "letv" /proc/cmdline); then
-    mount -o remount,rw /system
+    cp -f "$BASEDIR/selfdrive/hardware/eon/update.zip" "/data/media/0/update.zip"
     sed -i -e 's#/dev/input/event1#/dev/input/event2#g' ~/.bash_profile
     touch /ONEPLUS
-    mount -o remount,r /system
   else
     if [ ! -f /LEECO ]; then
-      mount -o remount,rw /system
       touch /LEECO
-      mount -o remount,r /system 
     fi
   fi
-  # mount -o remount,r /system  
-  
   neos=`cat /VERSION`
   if [ -f /ONEPLUS ] && [ $neos != 20 ] ; then
     mount -o remount,rw /system
@@ -94,10 +95,12 @@ function two_init {
 
   # USB traffic needs realtime handling on cpu 3
   [ -d "/proc/irq/733" ] && echo 3 > /proc/irq/733/smp_affinity_list
+  if [ -f /ONEPLUS ]; then
+    [ -d "/proc/irq/736" ] && echo 3 > /proc/irq/736/smp_affinity_list # USB for OP3T
+  fi
 
   # GPU and camera get cpu 2
-  #CAM_IRQS="177 178 179 180 181 182 183 184 185 186 192"
-  CAM_IRQS="177 178 179 180 181 182 183 192"
+  CAM_IRQS="177 178 179 180 181 182 183 184 185 186 192"
   for irq in $CAM_IRQS; do
     echo 2 > /proc/irq/$irq/smp_affinity_list
   done
