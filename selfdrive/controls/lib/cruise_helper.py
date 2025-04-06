@@ -712,6 +712,8 @@ class CruiseHelper:
         if self.longActiveUser <= 0:
           v_cruise_kph = self.v_ego_kph_set  ## 현재속도도 크루즈세트
           longActiveUser = 1
+          if not Params().get_bool("ActivateCruiseAfterBrake"):
+            longActiveUser = 3
         else:
           if self.xState == XState.softHold:
             longActiveUser = 1
@@ -885,7 +887,7 @@ class CruiseHelper:
       if longActiveUser <= 0 and not brakePressed and not CS.gasPressed:
         cruiseOnDist = abs(self.cruiseOnDist)
         if cruiseOnDist > 0.0 and CS.vEgo > 0.2 and self.vRel < 0 and self.dRel < cruiseOnDist:
-          self.send_apilot_event(controls, EventName.stopStop, 10.0)
+          #self.send_apilot_event(controls, EventName.stopStop, 10.0)
           if self.cruiseOnDist > 0.0:
             longActiveUser = 3
 
