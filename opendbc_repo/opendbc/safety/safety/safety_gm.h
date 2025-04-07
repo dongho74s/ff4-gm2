@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "safety_declarations.h"
 
@@ -77,8 +77,18 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       brake_pressed = GET_BYTE(to_push, 1) >= 10U;
     }
 
+    if ((addr == 0xF1) && (gm_hw == GM_ASCM)) {
+      brake_pressed = GET_BYTE(to_push, 1) >= 15U;
+    }
+
     if ((addr == 0xC9) && (gm_hw == GM_CAM)) {
-      brake_pressed = GET_BIT(to_push, 40U);
+      // Bolt용 브레이크 감지
+      brake_pressed = GET_BIT(to_push, 40U) != 0U;
+    }
+
+    // VOLT, BOLT 모두 acc_main_on 사용
+    if (addr == 0xC9) {
+      acc_main_on = GET_BIT(to_push, 29U) != 0U;
     }
 
     if (addr == 0x1C4) {
