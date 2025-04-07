@@ -171,8 +171,10 @@ class CarState(CarStateBase):
     if self.CP.networkLocation == NetworkLocation.fwdCamera and not self.CP.flags & GMFlags.NO_CAMERA.value:
       if self.CP.carFingerprint not in CC_ONLY_CAR:
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
+
       if self.CP.carFingerprint not in CAR.CADILLAC_CT6_2019:
         ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
+
       # openpilot controls nonAdaptive when not pcmCruise
       if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR: 
         ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
@@ -182,6 +184,7 @@ class CarState(CarStateBase):
       ret.cruiseState.enabled = pt_cp.vl["ECMCruiseControl"]["CruiseActive"] != 0
 
     self.pcm_acc_status = pt_cp.vl["AcceleratorPedal2"]["CruiseState"]
+
 
     ret.vCluRatio = 1.0 if self.CP.carFingerprint in CAR.CHEVROLET_VOLT else 0.96
 
@@ -228,6 +231,8 @@ class CarState(CarStateBase):
         lowspeed_messages.append(("RightRadar", 50))
       else:
         pt_messages.append(("BCMBlindSpotMonitor", 10))
+
+    # Used to read back last counter sent to PT by camera
 
     if CP.networkLocation == NetworkLocation.fwdCamera:
       pt_messages += [
