@@ -115,7 +115,6 @@ class GMPlatformConfig(PlatformConfig):
     Bus.pt: 'gm_global_a_powertrain_volt',
     Bus.radar: 'gm_global_a_object',
     Bus.chassis: 'gm_global_a_chassis',
-    Bus.lowspeed: 'gm_global_a_lowspeed',
   })
 
 
@@ -139,9 +138,9 @@ class CAR(Platforms):
     [GMCarDocs("Holden Astra 2017")],
     GMCarSpecs(mass=1363, wheelbase=2.662, steerRatio=15.7, centerToFrontRatio=0.4),
   )
-  CHEVROLET_VOLT = GMPlatformConfig(
+  CHEVROLET_VOLT = GMASCMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ")],
-    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469),
+    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.55, tireStiffnessFactor=0.469, minEnableSpeed=-1),
   )
   CADILLAC_ATS = GMASCMPlatformConfig(
     [GMCarDocs("Cadillac ATS Premium Performance 2018")],
@@ -294,7 +293,6 @@ class CanBus:
   CHASSIS = 2
   LOOPBACK = 128
   DROPPED = 192
-  LOWSPEED = 3
 
 class GMFlags(IntFlag):
   PEDAL_LONG = 1
