@@ -18,7 +18,6 @@ NetworkLocation = structs.CarParams.NetworkLocation
 
 CAM_MSG = 0x320  # AEBCmd
                  # TODO: Is this always linked to camera presence?
-ACCELERATOR_POS_MSG = 0xbe
 
 NON_LINEAR_TORQUE_PARAMS = {
   CAR.CHEVROLET_BOLT_EUV: [2.6531724862969748, 1.0, 0.1919764879840985, 0.009054123646805178],
@@ -96,7 +95,10 @@ class CarInterface(CarInterfaceBase):
     ret.brand = "gm"
     ret.safetyConfigs = [get_safety_config(structs.CarParams.SafetyModel.gm)]
     ret.autoResumeSng = False
-    ret.enableBsm = 0x142 in fingerprint[CanBus.POWERTRAIN] or 0x142 in fingerprint[CanBus.CAMERA]
+    if candidate == CAR.CHEVROLET_VOLT:
+      ret.enableBsm = 0x1079a379 in fingerprint[CanBus.LOWSPEED] or 0x1079f43b in fingerprint[CanBus.LOWSPEED]
+    else:
+      ret.enableBsm = 0x142 in fingerprint[CanBus.POWERTRAIN] or 0x142 in fingerprint[CanBus.CAMERA]
     ret.startAccel = 1.0
 
     useEVTables = Params().get_bool("EVTable")
@@ -184,7 +186,7 @@ class CarInterface(CarInterfaceBase):
       ret.vEgoStarting = 0.05
       ret.stopAccel = -0.5
       ret.startingState = True
-      ret.startAccel = 1.9
+      ret.startAccel = 2.0
 
       # softer long tune for ev table
       if useEVTables:
@@ -207,27 +209,6 @@ class CarInterface(CarInterfaceBase):
         ret.lateralTuning.pid.kiV = [0.]
         ret.lateralTuning.pid.kf = 1.
 
-    elif candidate == CAR.CADILLAC_CT6_ACC:
-      ret.steerActuatorDelay = 0.3
-      ret.longitudinalTuning.kpBP = [0.]
-      ret.longitudinalTuning.kpV = [1.0]
-      ret.longitudinalTuning.kiBP = [0.]
-      ret.longitudinalTuning.kiV = [.3]
-      ret.longitudinalTuning.kf = 1.0
-      ret.stoppingDecelRate = 0.2 # brake_travel/s while trying to stop
-      ret.stopAccel = -0.5
-      ret.startingState = True
-      ret.startAccel = 1.5
-
-      useTorque = Params().get_bool("LateralTorqueCustom")
-      if useTorque:
-        CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
-      else:
-        ret.lateralTuning.pid.kpBP = [0., 40.]
-        ret.lateralTuning.pid.kpV = [0., 0.17]
-        ret.lateralTuning.pid.kiBP = [0.]
-        ret.lateralTuning.pid.kiV = [0.]
-        ret.lateralTuning.pid.kf = 1.
 
     elif candidate == CAR.GMC_ACADIA:
       ret.minEnableSpeed = -1.  # engage speed is decided by pcm
@@ -291,6 +272,19 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.2
       ret.minEnableSpeed = -1.  # engage speed is decided by pcm
       ret.minSteerSpeed = 30 * CV.MPH_TO_MS
+      CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+    elif candidate == CAR.CADILLAC_CT6_2019:
+      ret.steerActuatorDelay = 0.3
+      ret.minEnableSpeed = -1.  # engage speed is decided by pcm
+      ret.longitudinalTuning.kpBP = [0.]
+      ret.longitudinalTuning.kpV = [1.0]
+      ret.longitudinalTuning.kiBP = [0.]
+      ret.longitudinalTuning.kiV = [.3]
+      ret.longitudinalTuning.kf = 1.0
+      ret.stoppingDecelRate = 0.2 # brake_travel/s while trying to stop
+      ret.stopAccel = -0.5
+      ret.startingState = True
+      ret.startAccel = 1.5
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
     elif candidate == CAR.CHEVROLET_VOLT_2019:
       ret.steerActuatorDelay = 0.2
@@ -382,12 +376,5 @@ class CarInterface(CarInterfaceBase):
       CanBus.CAMERA] and not candidate in SDGM_CAR:
       ret.flags |= GMFlags.NO_CAMERA.value
       ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.NO_CAMERA.value
-
-    if ACCELERATOR_POS_MSG not in fingerprint[CanBus.POWERTRAIN]:
-      ret.flags |= GMFlags.NO_ACCELERATOR_POS_MSG.value
-
-    if 608 in fingerprint[CanBus.POWERTRAIN]:
-      ret.flags |= GMFlags.SPEED_RELATED_MSG.value
-
 
     return ret

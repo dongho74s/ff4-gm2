@@ -14,7 +14,6 @@ TransmissionType = structs.CarParams.TransmissionType
 NetworkLocation = structs.CarParams.NetworkLocation
 GearShifter = structs.CarState.GearShifter
 STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
-LongCtrlState = car.CarControl.Actuators.LongControlState # kans
 BUTTONS_DICT = {CruiseButtons.RES_ACCEL: ButtonType.accelCruise, CruiseButtons.DECEL_SET: ButtonType.decelCruise,
                 CruiseButtons.MAIN: ButtonType.mainCruise, CruiseButtons.CANCEL: ButtonType.cancel,
                 CruiseButtons.GAP_DIST: ButtonType.gapAdjustCruise}
@@ -59,6 +58,7 @@ class CarState(CarStateBase):
     pt_cp = can_parsers[Bus.pt]
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
+    lowspeed_cp = can_parsers[Bus.lowspeed]
 
     ret = structs.CarState()
 
@@ -74,8 +74,13 @@ class CarState(CarStateBase):
       self.cruise_buttons = CruiseButtons.GAP_DIST
 
     if self.CP.enableBsm:
-      ret.leftBlindspot = pt_cp.vl["BCMBlindSpotMonitor"]["LeftBSM"] == 1
-      ret.rightBlindspot = pt_cp.vl["BCMBlindSpotMonitor"]["RightBSM"] == 1
+      if self.CP.carFingerprint in CAR.CHEVROLET_VOLT:
+        ret.leftBlindspot = bool(lowspeed_cp.vl["LeftRadar"]["BSM_Indicator_Light"])
+        ret.rightBlindspot = bool(lowspeed_cp.vl["RightRadar"]["BSM_Indicator_Light"])
+
+      else:
+        ret.leftBlindspot = bool(pt_cp.vl["BCMBlindSpotMonitor"]["LeftBSM"])
+        ret.rightBlindspot = bool(pt_cp.vl["BCMBlindSpotMonitor"]["RightBSM"])
 
     # Variables used for avoiding LKAS faults
     self.loopback_lka_steering_cmd_updated = len(loopback_cp.vl_all["ASCMLKASteeringCmd"]["RollingCounter"]) > 0
@@ -105,10 +110,7 @@ class CarState(CarStateBase):
     else:
       ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(pt_cp.vl["ECMPRDNL2"]["PRNDL2"], None))
 
-    if self.CP.flags & GMFlags.NO_ACCELERATOR_POS_MSG.value:
-      ret.brake = pt_cp.vl["EBCMBrakePedalPosition"]["BrakePedalPosition"] / 0xd0
-    else:
-      ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
+    ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
     if self.CP.networkLocation == NetworkLocation.fwdCamera:
       ret.brakePressed = pt_cp.vl["ECMEngineStatus"]["BrakePressed"] != 0
     else:
@@ -169,7 +171,10 @@ class CarState(CarStateBase):
     if self.CP.networkLocation == NetworkLocation.fwdCamera and not self.CP.flags & GMFlags.NO_CAMERA.value:
       if self.CP.carFingerprint not in CC_ONLY_CAR:
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
-      ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
+
+      if self.CP.carFingerprint not in CAR.CADILLAC_CT6_2019:
+        ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
+
       # openpilot controls nonAdaptive when not pcmCruise
       if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR: 
         ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
@@ -179,19 +184,9 @@ class CarState(CarStateBase):
       ret.cruiseState.enabled = pt_cp.vl["ECMCruiseControl"]["CruiseActive"] != 0
 
     self.pcm_acc_status = pt_cp.vl["AcceleratorPedal2"]["CruiseState"]
-    if self.CP.carFingerprint in (CAR.CHEVROLET_TRAX, CAR.CHEVROLET_TRAILBLAZER, CAR.CHEVROLET_TRAILBLAZER_CC): 
-      ret.vCluRatio = 0.96
-    elif self.CP.flags & GMFlags.SPEED_RELATED_MSG.value:
-      # kans: use cluster speed & vCluRatio(longitudialPlanner)
-      self.is_metric = Params().get_bool("IsMetric")
-      speed_conv = CV.MPH_TO_MS if self.is_metric else CV.KPH_TO_MS
-      cluSpeed = pt_cp.vl["SPEED_RELATED"]["ClusterSpeed"]
-      ret.vEgoCluster = cluSpeed * speed_conv
-      vEgoClu, aEgoClu = self.update_clu_speed_kf(ret.vEgoCluster)
-      if self.CP.carFingerprint in CAR.CHEVROLET_VOLT:
-        ret.vCluRatio = 1.0 #(ret.vEgo / vEgoClu) if (vEgoClu > 3. and ret.vEgo > 3.) else 1.0
-      else:
-        ret.vCluRatio = 0.96
+
+
+    ret.vCluRatio = 1.0 if self.CP.carFingerprint in CAR.CHEVROLET_VOLT else 0.96
 
     # Don't add event if transitioning from INIT, unless it's to an actual button
     buttonEvents = [] # kans
@@ -208,6 +203,10 @@ class CarState(CarStateBase):
 
   @staticmethod
   def get_can_parsers(CP):
+    # BSM Signal Debuging
+    print(f"DEBUG: Entering get_can_parsers")
+    print(f"DEBUG: CP.carFingerprint = {CP.carFingerprint}")
+    print(f"DEBUG: Bus.lowspeed DBC = {DBC.get(CP.carFingerprint, {}).get(Bus.lowspeed, 'NOT FOUND')}")
     pt_messages = [
       ("BCMTurnSignals", 1),
       ("ECMPRDNL2", 10),
@@ -224,21 +223,21 @@ class CarState(CarStateBase):
       ("PSCMSteeringAngle", 100),
       ("ECMAcceleratorPos", 80),
     ]
-    if CP.flags & GMFlags.SPEED_RELATED_MSG.value:
-      pt_messages.append(("SPEED_RELATED", 20))
 
+    lowspeed_messages = []
     if CP.enableBsm:
-      pt_messages.append(("BCMBlindSpotMonitor", 10))
+      if CP.carFingerprint in CAR.CHEVROLET_VOLT:
+        lowspeed_messages.append(("LeftRadar", 50))
+        lowspeed_messages.append(("RightRadar", 50))
+      else:
+        pt_messages.append(("BCMBlindSpotMonitor", 10))
 
     # Used to read back last counter sent to PT by camera
+
     if CP.networkLocation == NetworkLocation.fwdCamera:
       pt_messages += [
         ("ASCMLKASteeringCmd", 0),
       ]
-    # 이 부분은 위 조건아래 들어와야 하는 것이 아니므로 내어쓰기 해야 합니다.
-    if CP.flags & GMFlags.NO_ACCELERATOR_POS_MSG.value:
-      pt_messages.remove(("ECMAcceleratorPos", 80))
-      pt_messages.append(("EBCMBrakePedalPosition", 100))
 
     if CP.transmissionType == TransmissionType.direct:
       pt_messages += [
@@ -273,7 +272,10 @@ class CarState(CarStateBase):
 
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
-      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
-      Bus.loopback: CANParser(DBC[CP.carFingerprint][Bus.pt], loopback_messages, 128),
+      # DBC Signal Debuging
+      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 2),
+      Bus.lowspeed: CANParser(DBC.get(CP.carFingerprint, {}).get(Bus.lowspeed, "MISSING_DBC"), lowspeed_messages, 3),
+      Bus.loopback: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 128),
     }
+
 

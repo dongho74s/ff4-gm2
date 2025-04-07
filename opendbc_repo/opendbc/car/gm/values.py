@@ -106,6 +106,7 @@ class GMPlatformConfig(PlatformConfig):
     Bus.pt: 'gm_global_a_powertrain_volt',
     Bus.radar: 'gm_global_a_object',
     Bus.chassis: 'gm_global_a_chassis',
+    Bus.lowspeed: 'gm_global_a_lowspeed',
   })
 
 
@@ -123,9 +124,9 @@ class CAR(Platforms):
     [GMCarDocs("Holden Astra 2017")],
     GMCarSpecs(mass=1363, wheelbase=2.662, steerRatio=15.7, centerToFrontRatio=0.4),
   )
-  CHEVROLET_VOLT = GMASCMPlatformConfig(
+  CHEVROLET_VOLT = GMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ")],
-    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.55, tireStiffnessFactor=0.469, minEnableSpeed=-1),
+    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469),
   )
   CADILLAC_ATS = GMASCMPlatformConfig(
     [GMCarDocs("Cadillac ATS Premium Performance 2018")],
@@ -183,15 +184,19 @@ class CAR(Platforms):
   )
   CADILLAC_XT4 = GMPlatformConfig(
     [GMCarDocs("Cadillac XT4 2023", "Driver Assist Package")],
-    CarSpecs(mass=1660, wheelbase=2.78, steerRatio=14.4, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=1660, wheelbase=2.78, steerRatio=14.4, centerToFrontRatio=0.4),
   )
-  CHEVROLET_VOLT_2019 = GMPlatformConfig(
+  CADILLAC_CT6_2019 = GMSDGMPlatformConfig(
+    [GMCarDocs("Cadillac CT6 2019", "Driver Assist Package")],
+    GMCarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
+  ) 
+  CHEVROLET_VOLT_2019 = GMSDGMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2019", "Adaptive Cruise Control (ACC) & LKAS")],
     GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=15.7, centerToFrontRatio=0.45),
   )
   CHEVROLET_TRAVERSE = GMPlatformConfig(
     [GMCarDocs("Chevrolet Traverse 2022-23", "RS, Premier, or High Country Trim")],
-    CarSpecs(mass=1955, wheelbase=3.07, steerRatio=17.9, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=1955, wheelbase=3.07, steerRatio=17.9, centerToFrontRatio=0.4),
   )
   # Separate car def is required when there is no ASCM
   # (for now) unless there is a way to detect it when it has been unplugged...
@@ -212,7 +217,7 @@ class CAR(Platforms):
   )
   CHEVROLET_SUBURBAN = GMPlatformConfig(
     [GMCarDocs("Chevrolet Suburban Premier 2016-20")],
-    CarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
+    GMCarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
   )
   CHEVROLET_SUBURBAN_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Suburban 2016-20")],
@@ -220,11 +225,11 @@ class CAR(Platforms):
   )
   GMC_YUKON_CC = GMPlatformConfig(
     [GMCarDocs("GMC Yukon No ACC")],
-    CarSpecs(mass=2541, wheelbase=2.95, steerRatio=16.3, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=2541, wheelbase=2.95, steerRatio=16.3, centerToFrontRatio=0.4),
   )
   CADILLAC_CT6_CC = GMPlatformConfig(
     [GMCarDocs("Cadillac CT6 No ACC")],
-    CarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
   )
   CHEVROLET_TRAILBLAZER_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Trailblazer NO ACC 2021-22")],
@@ -232,11 +237,11 @@ class CAR(Platforms):
   )
   CHEVROLET_MALIBU_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Malibu No ACC")],
-    CarSpecs(mass=1450, wheelbase=2.8, steerRatio=15.8, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=1450, wheelbase=2.8, steerRatio=15.8, centerToFrontRatio=0.4),
   )
   CADILLAC_XT5_CC = GMPlatformConfig(
     [GMCarDocs("Cadillac XT5 No ACC")],
-    CarSpecs(mass=1810, wheelbase=2.86, steerRatio=16.34, centerToFrontRatio=0.5),
+    GMCarSpecs(mass=1810, wheelbase=2.86, steerRatio=16.34, centerToFrontRatio=0.5),
   )
   BUICK_BABYENCLAVE = GMPlatformConfig(
     [GMCarDocs("Buick Baby Enclave 2020-23", "Driver Assist Package")],
@@ -244,11 +249,7 @@ class CAR(Platforms):
   )
   CHEVROLET_TRAX = GMPlatformConfig(
     [GMCarDocs("Chevrolet TRAX 2024")],
-    CarSpecs(mass=1365, wheelbase=2.7, steerRatio=16.1, centerToFrontRatio=0.7),
-  )
-  CADILLAC_CT6_ACC = GMPlatformConfig(
-    [GMCarDocs("CT6-2019 Advanced ACC", "Adaptive Cruise Control (ACC)")],
-    GMCarSpecs(mass=1736, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
+    GMCarSpecs(mass=1365, wheelbase=2.7, steerRatio=16.1, centerToFrontRatio=0.7),
   )
   GMC_YUKON = GMPlatformConfig(
     [GMCarDocs("GMC Yukon 2019-20", "Adaptive Cruise Control (ACC) & LKAS")],
@@ -278,13 +279,12 @@ class CanBus:
   CHASSIS = 2
   LOOPBACK = 128
   DROPPED = 192
+  LOWSPEED = 3
 
 class GMFlags(IntFlag):
   PEDAL_LONG = 1
   CC_LONG = 2
   NO_CAMERA = 4
-  NO_ACCELERATOR_POS_MSG = 8
-  SPEED_RELATED_MSG = 16
 
 
 # In a Data Module, an identifier is a string used to recognize an object,
@@ -340,7 +340,7 @@ EV_CAR = {CAR.CHEVROLET_VOLT, CAR.CHEVROLET_VOLT_2019, CAR.CHEVROLET_BOLT_EUV, C
 CC_ONLY_CAR = {CAR.CHEVROLET_VOLT_CC, CAR.CHEVROLET_BOLT_CC, CAR.CHEVROLET_EQUINOX_CC, CAR.CHEVROLET_SUBURBAN_CC, CAR.GMC_YUKON_CC, CAR.CADILLAC_CT6_CC, CAR.CHEVROLET_TRAILBLAZER_CC, CAR.CADILLAC_XT5_CC, CAR.CHEVROLET_MALIBU_CC}
 CC_REGEN_PADDLE_CAR = {CAR.CHEVROLET_BOLT_CC}
 # We're integrated at the Safety Data Gateway Module on these cars
-SDGM_CAR = {CAR.CADILLAC_XT4, CAR.CHEVROLET_TRAVERSE, CAR.BUICK_BABYENCLAVE, CAR.CHEVROLET_VOLT_2019}
+SDGM_CAR = {CAR.CADILLAC_XT4, CAR.CADILLAC_CT6_2019, CAR.CHEVROLET_TRAVERSE, CAR.BUICK_BABYENCLAVE, CAR.CHEVROLET_VOLT_2019}
 
 # We're integrated at the camera with VOACC on these cars (instead of ASCM w/ OBD-II harness)
 CAMERA_ACC_CAR = {CAR.CHEVROLET_BOLT_EUV, CAR.CHEVROLET_SILVERADO, CAR.CHEVROLET_EQUINOX, CAR.CHEVROLET_TRAILBLAZER, CAR.CHEVROLET_TRAX}
