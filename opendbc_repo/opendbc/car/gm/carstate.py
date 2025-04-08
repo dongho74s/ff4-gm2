@@ -175,7 +175,7 @@ class CarState(CarStateBase):
       else:
         ret.cruiseState.speed = pt_cp.vl["ECMCruiseControl"]["CruiseSetSpeed"] * CV.KPH_TO_MS
 
-      if self.CP.carFingerprint not in SDGM_CAR:
+      if self.CP.carFingerprint not in CAR.CADILLAC_CT6_2019:
         ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
       # openpilot controls nonAdaptive when not pcmCruise
       if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR:
