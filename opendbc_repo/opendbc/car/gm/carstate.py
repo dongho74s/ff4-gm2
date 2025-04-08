@@ -7,13 +7,15 @@ from opendbc.can.parser import CANParser
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, CAR, DBC, CanBus, GMFlags, CC_ONLY_CAR, CAMERA_ACC_CAR
+from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, SDGM_CAR, ALT_ACCS, GMFlags, \
+  CC_ONLY_CAR, CAMERA_ACC_CAR, CAR
 
 ButtonType = structs.CarState.ButtonEvent.Type
 TransmissionType = structs.CarParams.TransmissionType
 NetworkLocation = structs.CarParams.NetworkLocation
 GearShifter = structs.CarState.GearShifter
 STANDSTILL_THRESHOLD = 10 * 0.0311 * CV.KPH_TO_MS
+
 BUTTONS_DICT = {CruiseButtons.RES_ACCEL: ButtonType.accelCruise, CruiseButtons.DECEL_SET: ButtonType.decelCruise,
                 CruiseButtons.MAIN: ButtonType.mainCruise, CruiseButtons.CANCEL: ButtonType.cancel,
                 CruiseButtons.GAP_DIST: ButtonType.gapAdjustCruise}
@@ -121,7 +123,7 @@ class CarState(CarStateBase):
 
     if self.CP.enableGasInterceptorDEPRECATED:
       ret.gas = (pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS"] + pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS2"]) / 2.
-      threshold = 20 if self.CP.carFingerprint in CAMERA_ACC_CAR else 4
+      threshold = 15 if self.CP.carFingerprint in CAMERA_ACC_CAR else 4
       ret.gasPressed = ret.gas > threshold
     else:
       ret.gas = pt_cp.vl["AcceleratorPedal2"]["AcceleratorPedal2"] / 254.
@@ -163,14 +165,20 @@ class CarState(CarStateBase):
     if self.CP.carFingerprint not in CAR.CHEVROLET_VOLT:
       ret.cruiseState.standstill = False
     if self.CP.networkLocation == NetworkLocation.fwdCamera and not self.CP.flags & GMFlags.NO_CAMERA.value:
-      if self.CP.carFingerprint not in CC_ONLY_CAR:
+      if self.CP.carFingerprint not in (ALT_ACCS | CC_ONLY_CAR):
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
+        # This FCW signal only works for SDGM cars. CAM cars send FCW on GMLAN but this bit is always 0 for them
+        ret.stockFcw = cam_cp.vl["ASCMActiveCruiseControlStatus"]["FCWAlert"] != 0
+        if self.CP.pcmCruise:
+          # openpilot controls nonAdaptive when not pcmCruise
+          ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
+      else:
+        ret.cruiseState.speed = pt_cp.vl["ECMCruiseControl"]["CruiseSetSpeed"] * CV.KPH_TO_MS
 
-      if self.CP.carFingerprint not in CAR.CADILLAC_CT6_2019:
+      if self.CP.carFingerprint not in SDGM_CAR:
         ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
-
       # openpilot controls nonAdaptive when not pcmCruise
-      if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR: 
+      if self.CP.pcmCruise and self.CP.carFingerprint not in CC_ONLY_CAR:
         ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
     if self.CP.carFingerprint in CC_ONLY_CAR:
       ret.accFaulted = False
@@ -178,7 +186,6 @@ class CarState(CarStateBase):
       ret.cruiseState.enabled = pt_cp.vl["ECMCruiseControl"]["CruiseActive"] != 0
 
     self.pcm_acc_status = pt_cp.vl["AcceleratorPedal2"]["CruiseState"]
-
 
     ret.vCluRatio = 1.0 if self.CP.carFingerprint in CAR.CHEVROLET_VOLT else 0.96
 
@@ -217,23 +224,12 @@ class CarState(CarStateBase):
     if CP.enableBsm:
       pt_messages.append(("BCMBlindSpotMonitor", 10))
 
-    # Used to read back last counter sent to PT by camera
-
-    if CP.networkLocation == NetworkLocation.fwdCamera:
-      pt_messages += [
-        ("ASCMLKASteeringCmd", 0),
-      ]
-
     if CP.transmissionType == TransmissionType.direct:
       pt_messages += [
         ("EBCMRegenPaddle", 50),
         ("EVDriveMode", 0),
       ]
 
-    if CP.carFingerprint in CC_ONLY_CAR:
-      pt_messages += [
-        ("ECMCruiseControl", 10),
-      ]
     if CP.enableGasInterceptorDEPRECATED:
       pt_messages += [
         ("GAS_SENSOR", 50),
@@ -241,15 +237,24 @@ class CarState(CarStateBase):
 
     cam_messages = []
     if CP.networkLocation == NetworkLocation.fwdCamera and not CP.flags & GMFlags.NO_CAMERA.value:
+      pt_messages += [
+        ("ASCMLKASteeringCmd", 0),
+      ]
       cam_messages += [
         ("ASCMLKASteeringCmd", 10),
-        ("AEBCmd", 10),
       ]
 
-      if CP.carFingerprint not in CC_ONLY_CAR:
+      if CP.carFingerprint in ALT_ACCS | CC_ONLY_CAR:
+        pt_messages.append(("ECMCruiseControl", 10))
+      elif CP.carFingerprint not in CC_ONLY_CAR:
+        cam_messages.append(("ASCMActiveCruiseControlStatus", 25))
+
+      if CP.carFingerprint not in SDGM_CAR:
         cam_messages += [
-          ("ASCMActiveCruiseControlStatus", 25),
+          ("AEBCmd", 10),
         ]
+    elif CP.carFingerprint in CC_ONLY_CAR:
+      pt_messages.append(("ECMCruiseControl", 10))
 
     loopback_messages = [
       ("ASCMLKASteeringCmd", 0),

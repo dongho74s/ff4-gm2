@@ -259,6 +259,7 @@ static safety_config gm_init(uint16_t param) {
   static const CanMsg GM_ASCM_TX_MSGS[] = {{0x180, 0, 4}, {0x409, 0, 7}, {0x40A, 0, 7}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7}, {0xBD, 0, 7},// pt bus
                                            {0xA1, 1, 7}, {0x306, 1, 8}, {0x308, 1, 7}, {0x310, 1, 2},   // obs bus
                                            {0x315, 2, 5}};  // ch bus
+                                           {0x104c006c, 3, 3}, {0x10400060, 3, 5}, {0x1079a379, 3, 2}, {0x1079f43b, 3, 2}};  // gmlan
 
 
   static const CanMsg GM_CC_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x1E1, 0, 7},  // pt bus
@@ -324,13 +325,10 @@ static safety_config gm_init(uint16_t param) {
   if (gm_hw == GM_CAM) {
     if (gm_cc_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CC_LONG_TX_MSGS);
-      print("GM CC Long\n");
     } else if (gm_cam_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_LONG_TX_MSGS);
-      print("GM CAM Long\n");
     } else {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_TX_MSGS);
-      print("GM CAM\n");
     }
   }
   return ret;
