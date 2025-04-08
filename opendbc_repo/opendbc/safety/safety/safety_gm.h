@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "safety_declarations.h"
 
@@ -77,8 +77,18 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       brake_pressed = GET_BYTE(to_push, 1) >= 10U;
     }
 
+    if ((addr == 0xF1) && (gm_hw == GM_ASCM)) {
+      brake_pressed = GET_BYTE(to_push, 1) >= 15U;
+    }
+
     if ((addr == 0xC9) && (gm_hw == GM_CAM)) {
+      // Bolt용 브레이크 감지
       brake_pressed = GET_BIT(to_push, 40U);
+    }
+
+    // VOLT, BOLT 모두 acc_main_on 사용
+    if (addr == 0xC9) {
+      acc_main_on = GET_BIT(to_push, 29U);
     }
 
     if (addr == 0x1C4) {
@@ -250,7 +260,6 @@ static safety_config gm_init(uint16_t param) {
                                            {0xA1, 1, 7}, {0x306, 1, 8}, {0x308, 1, 7}, {0x310, 1, 2},   // obs bus
                                            {0x315, 2, 5}};  // ch bus
 
-
   static const CanMsg GM_CC_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x1E1, 0, 7},  // pt bus
                                               {0x184, 2, 8}, {0x1E1, 2, 7}};  // camera bus
 
@@ -314,13 +323,10 @@ static safety_config gm_init(uint16_t param) {
   if (gm_hw == GM_CAM) {
     if (gm_cc_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CC_LONG_TX_MSGS);
-      print("GM CC Long\n");
     } else if (gm_cam_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_LONG_TX_MSGS);
-      print("GM CAM Long\n");
     } else {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_TX_MSGS);
-      print("GM CAM\n");
     }
   }
   return ret;
