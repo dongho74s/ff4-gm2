@@ -83,12 +83,12 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
 
     if ((addr == 0xC9) && (gm_hw == GM_CAM)) {
       // Bolt용 브레이크 감지
-      brake_pressed = GET_BIT(to_push, 40U) != 0U;
+      brake_pressed = GET_BIT(to_push, 40U);
     }
 
     // VOLT, BOLT 모두 acc_main_on 사용
     if (addr == 0xC9) {
-      acc_main_on = GET_BIT(to_push, 29U) != 0U;
+      acc_main_on = GET_BIT(to_push, 29U);
     }
 
     if (addr == 0x1C4) {
@@ -259,8 +259,6 @@ static safety_config gm_init(uint16_t param) {
   static const CanMsg GM_ASCM_TX_MSGS[] = {{0x180, 0, 4}, {0x409, 0, 7}, {0x40A, 0, 7}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7}, {0xBD, 0, 7},// pt bus
                                            {0xA1, 1, 7}, {0x306, 1, 8}, {0x308, 1, 7}, {0x310, 1, 2},   // obs bus
                                            {0x315, 2, 5}};  // ch bus
-                                           {0x104c006c, 3, 3}, {0x10400060, 3, 5}, {0x1079a379, 3, 2}, {0x1079f43b, 3, 2}};  // gmlan
-
 
   static const CanMsg GM_CC_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x1E1, 0, 7},  // pt bus
                                               {0x184, 2, 8}, {0x1E1, 2, 7}};  // camera bus
