@@ -55,7 +55,6 @@ class CarState(CarStateBase):
     # cruiseMain default(test from nd0706-vision)
     self.cruiseMain_on = True if int(Params().get("EnableAutoEngage")) == 2 else False
     self.totalDistance = 0.0
-    self.accFaultedCount = 0
 
   def update(self, pt_cp, cam_cp, loopback_cp, chassis_cp, gmlan_cp):
     ret = car.CarState.new_message()
@@ -107,17 +106,7 @@ class CarState(CarStateBase):
     else:
       ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(pt_cp.vl["ECMPRDNL2"]["PRNDL2"], None))
 
-    if self.CP.networkLocation == NetworkLocation.fwdCamera:
-      if self.CP.carFingerprint in CC_ONLY_CAR:
-        ret.brake = pt_cp.vl["EBCMBrakePedalPosition"]["BrakePedalPosition"] / 0xd0
-    else:
-      ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
-
-    # Regen braking is braking
-    if self.CP.transmissionType == TransmissionType.direct:
-      ret.regenBraking = pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"] != 0
-      self.regenPaddlePressed = ret.regenBraking
-      self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
+    ret.brake = pt_cp.vl["ECMAcceleratorPos"]["BrakePedalPos"]
     if self.CP.networkLocation == NetworkLocation.fwdCamera:
       ret.brakePressed = pt_cp.vl["ECMEngineStatus"]["BrakePressed"] != 0
     else:
@@ -125,8 +114,12 @@ class CarState(CarStateBase):
       # that the brake is being intermittently pressed without user interaction.
       # To avoid a cruise fault we need to use a conservative brake position threshold
       # https://static.nhtsa.gov/odi/tsbs/2017/MC-10137629-9999.pdf
-      ret.brakePressed = (ret.brake >= 10 or self.regenPaddlePressed)
+      ret.brakePressed = ret.brake >= 10
 
+    # Regen braking is braking
+    if self.CP.transmissionType == TransmissionType.direct:
+      ret.regenBraking = pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"] != 0
+      self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
 
     cv_unit = 0.7256
     ret.tpms.fl = cv_unit * pt_cp.vl["TPMS"]["PRESSURE_FL"]
@@ -136,11 +129,8 @@ class CarState(CarStateBase):
 
     if self.CP.enableGasInterceptor:
       ret.gas = (pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS"] + pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS2"]) / 2.
-      if self.CP.carFingerprint in (CAR.BOLT_EUV, CAR.BOLT_CC):
-        ret.gasPressed = ret.gas > 20
-      else:
-        threshold = 20 if self.CP.carFingerprint in CAMERA_ACC_CAR else 4
-        ret.gasPressed = ret.gas > threshold
+      threshold = 20 if self.CP.carFingerprint in CAMERA_ACC_CAR else 4
+      ret.gasPressed = ret.gas > threshold
     else:
       ret.gas = pt_cp.vl["AcceleratorPedal2"]["AcceleratorPedal2"] / 254.
       ret.gasPressed = ret.gas > 1e-5
@@ -167,13 +157,18 @@ class CarState(CarStateBase):
     ret.leftBlinker = pt_cp.vl["BCMTurnSignals"]["TurnSignals"] == 1
     ret.rightBlinker = pt_cp.vl["BCMTurnSignals"]["TurnSignals"] == 2
 
-    ret.parkingBrake = pt_cp.vl["VehicleIgnitionAlt"]["ParkBrake"] == 1
+    ret.parkingBrake = pt_cp.vl["BCMGeneralPlatformStatus"]["ParkBrakeSwActive"] == 1
     ret.cruiseState.available = pt_cp.vl["ECMEngineStatus"]["CruiseMainOn"] != 0
     self.cruiseMain_on =  ret.cruiseState.available
     ret.espDisabled = pt_cp.vl["ESPStatus"]["TractionControlOn"] != 1
-    # for delay Accfault event
-    ret.accFaulted = (pt_cp.vl["AcceleratorPedal2"]["CruiseState"] == AccState.FAULTED or \
-                      pt_cp.vl["EBCMFrictionBrakeStatus"]["FrictionBrakeUnavailable"] == 1)
+
+    # accFault state
+    cruise_state = pt_cp.vl["AcceleratorPedal2"]["CruiseState"]
+    brake_pressed = ret.brakePressed
+    # FAULTED 상태지만, 운전자가 브레이크를 밟은 경우는 실제 fault가 아님
+    ret.accFaulted = (cruise_state == AccState.FAULTED and not brake_pressed)
+    #ret.accFaulted = pt_cp.vl["AcceleratorPedal2"]["CruiseState"] == AccState.FAULTED #or \
+    #                  pt_cp.vl["EBCMFrictionBrakeStatus"]["FrictionBrakeUnavailable"] == 1)
 
     if self.CP.enableGasInterceptor:  # Flip CC main logic when pedal is being used for long TODO: switch to cancel cc
       ret.cruiseState.available = (not ret.cruiseState.available)
@@ -276,12 +271,11 @@ class CarState(CarStateBase):
       ("PSCMStatusChecksum", "PSCMStatus"),
       ("RollingCounter", "PSCMStatus"),
       ("TractionControlOn", "ESPStatus"),
-      ("ParkBrake", "VehicleIgnitionAlt"),
+      ("ParkBrakeSwActive", "BCMGeneralPlatformStatus"),
       ("CruiseMainOn", "ECMEngineStatus"),
       ("BrakePressed", "ECMEngineStatus"),
       ("DistanceButton", "ASCMSteeringButton"),
       ("RollingCounter", "ASCMLKASteeringCmd"),
-      ("ClusterSpeed", "SPEED_RELATED"),
       ("EngineRPM", "ECMEngineStatus"),
       ("PRESSURE_FL", "TPMS"),
       ("PRESSURE_FR", "TPMS"),
@@ -296,7 +290,7 @@ class CarState(CarStateBase):
       ("PSCMStatus", 10),
       ("ESPStatus", 10),
       ("BCMDoorBeltStatus", 10),
-      ("VehicleIgnitionAlt", 10),
+      ("BCMGeneralPlatformStatus", 10),
       ("EBCMWheelSpdFront", 20),
       ("EBCMWheelSpdRear", 20),
       ("EBCMFrictionBrakeStatus", 20),
@@ -305,7 +299,6 @@ class CarState(CarStateBase):
       ("ECMEngineStatus", 100),
       ("PSCMSteeringAngle", 100),
       ("ECMAcceleratorPos", 80),
-      ("SPEED_RELATED", 20),
       ("TPMS", 0),
     ]
 
@@ -328,12 +321,6 @@ class CarState(CarStateBase):
         ("EVDriveMode", 0),
       ]
 
-
-    if CP.carFingerprint in CC_ONLY_CAR:
-      signals.remove(("BrakePedalPos", "ECMAcceleratorPos"))
-      signals.append(("BrakePedalPosition", "EBCMBrakePedalPosition"))
-      checks.remove(("ECMAcceleratorPos", 80))
-      checks.append(("EBCMBrakePedalPosition", 100))
 
     if CP.enableGasInterceptor:
       signals.append(("INTERCEPTOR_GAS", "GAS_SENSOR"))
