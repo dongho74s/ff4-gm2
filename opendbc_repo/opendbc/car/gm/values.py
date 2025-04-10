@@ -245,10 +245,6 @@ class CAR(Platforms):
     [GMCarDocs("Chevrolet Suburban NO ACC 2016-20")],
     GMCarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
   )
-  GMC_YUKON_CC = GMPlatformConfig(
-    [GMCarDocs("GMC Yukon No ACC")],
-    GMCarSpecs(mass=2541, wheelbase=2.95, steerRatio=16.3, centerToFrontRatio=0.4),
-  )
   CHEVROLET_TRAX = GMPlatformConfig(
     [GMCarDocs("Chevrolet TRAX 2024")],
     GMCarSpecs(mass=1365, wheelbase=2.7, steerRatio=16.1, centerToFrontRatio=0.7),
