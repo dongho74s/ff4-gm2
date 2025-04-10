@@ -7,8 +7,7 @@ from functools import lru_cache
 from common.basedir import BASEDIR
 from selfdrive.swaglog import cloudlog
 
-RELEASE_BRANCHES = ['release3-staging', 'dashcam3-staging', 'release3', 'dashcam3', 'c2-master', 'c3-master']
-TESTED_BRANCHES = RELEASE_BRANCHES + ['devel', 'devel-staging']
+TESTED_BRANCHES = ['c2-resume', 'c2-oneplus']
 
 training_version: bytes = b"0.2.0"
 terms_version: bytes = b"2"
@@ -56,15 +55,11 @@ def get_origin(default: Optional[str] = None) -> Optional[str]:
 
 @cache
 def get_normalized_origin(default: Optional[str] = None) -> Optional[str]:
-  origin = get_origin()
-
-  if origin is None:
-    return default
-
-  return origin.replace("git@", "", 1) \
-               .replace(".git", "", 1) \
-               .replace("https://", "", 1) \
-               .replace(":", "/", 1)
+  return get_origin()\
+          .replace("git@", "", 1)\
+          .replace(".git", "", 1)\
+          .replace("https://", "", 1)\
+          .replace(":", "/", 1)
 
 
 @cache
@@ -95,9 +90,6 @@ def is_comma_remote() -> bool:
 def is_tested_branch() -> bool:
   return get_short_branch() in TESTED_BRANCHES
 
-@cache
-def is_release_branch() -> bool:
-  return get_short_branch() in RELEASE_BRANCHES
 
 @cache
 def is_dirty() -> bool:
