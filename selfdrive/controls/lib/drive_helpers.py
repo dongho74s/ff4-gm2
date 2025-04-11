@@ -188,7 +188,7 @@ def get_lag_adjusted_curvature(CP, v_ego, psis, curvatures, curvature_rates, ste
   safe_desired_curvature_rate = clip(desired_curvature_rate,
                                      -max_curvature_rate,
                                      max_curvature_rate)
-  safe_desired_curvature = clip(desired_curvature * (Params().get_float("PathFactor") * 0.01),
+  safe_desired_curvature = clip(desired_curvature * (float(int(Params().get("PathFactor"))) * 0.01),
                                 current_curvature_desired - max_curvature_rate * DT_MDL,
                                 current_curvature_desired + max_curvature_rate * DT_MDL)
 

@@ -292,7 +292,7 @@ class CarInterfaceBase(ABC):
     return ret
 
   @staticmethod
-  def configure_torque_tune(candidate, tune, steering_angle_deadzone_deg=0.15, use_steering_angle=True):
+  def configure_torque_tune(candidate, tune, steering_angle_deadzone_deg=0.1, use_steering_angle=True):
     params = get_torque_params(candidate)
 
     tune.init('torque')
@@ -397,19 +397,20 @@ class CarInterfaceBase(ABC):
     # Handle button presses
     for b in cs_out.buttonEvents:
       # Enable OP long on falling edge of enable buttons (defaults to accelCruise and decelCruise, overridable per-port)
-      if not self.CP.pcmCruise and (b.type in enable_buttons and not b.pressed):# and not cs_out.cruiseState.pcmMode:
+      if not self.CP.pcmCruise and (b.type in enable_buttons and not b.pressed):
         events.add(EventName.buttonEnable)
       # Disable on rising and falling edge of cancel for both stock and OP long
-      if b.type == ButtonType.cancel:
-        if self.CP.openpilotLongitudinalControl:
-          events.add(EventName.buttonCancel)
+      # Auto Cruise적용시 아래 이벤트 주석처리하고 그 아래 cruiseHelper용 이벤트 적용
+      #if b.type == ButtonType.cancel:
+      #  if self.CP.openpilotLongitudinalControl:
+      #    events.add(EventName.buttonCancel)
 
-    # Test: Auto Cruise
+    # Auto Cruise용 버튼이벤트
     if not self.CP.pcmCruise:
-      if self.cruise_helper.longActiveUser > 0:
+      if self.cruise_helper.auto_cruise_control or self.cruise_helper.longActiveUser > 0:
         if not events.any(ET.NO_ENTRY):
           events.add(EventName.buttonEnable)
-      elif self.cruise_helper.longActiveUser < 0:
+      elif self.cruise_helper.auto_cruise_control or self.cruise_helper.longActiveUser < 0:
         events.add(EventName.buttonCancel)
 
     # Handle permanent and temporary steering faults
@@ -446,7 +447,7 @@ class CarInterfaceBase(ABC):
       if cs_out.cruiseState.enabled and not self.CS.out.cruiseState.enabled and allow_enable:
         events.add(EventName.pcmEnable)
       elif not cs_out.cruiseState.enabled:
-        #events.add(EventName.pcmDisable)  #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨.
+        #events.add(EventName.pcmDisable) #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨
         pass
 
     return events
