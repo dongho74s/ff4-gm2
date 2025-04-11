@@ -90,18 +90,92 @@ def get_torque_params():
 
 # generic car and radar interfaces
 
+
+class RadarInterfaceBase(ABC):
+  def __init__(self, CP: structs.CarParams):
+    self.CP = CP
+    self.rcp = None
+    self.tracks: dict[int, MyTrack] = {}
+    self.pts: dict[int, structs.RadarData.RadarPoint] = {}
+    self.frame = 0
+    delay = CP.radarDelay
+    self.v_ego_hist = deque([0.0], maxlen=int(round(delay / DT_CTRL)) + 1)
+    self.v_ego = 0.0
+    self.last_timestamp = None
+    self.dt = None
+
+    self.init_samples = []
+    self.init_done = False
+
+  def estimate_dt(self, rcv_time):
+    if len(self.init_samples) > 20:
+      estimated_dt = np.mean(np.diff(self.init_samples))
+      self.dt = estimated_dt
+      self.init_done = True
+      print(f"Estimated radar dt: {self.dt} sec")
+    else:
+      self.init_samples.append(rcv_time)
+
+     
+  def update_carrot(self, v_ego, rcv_time, can_packets: list[tuple[int, list[CanData]]]) -> structs.RadarDataT | None:
+    self.v_ego_hist.append(v_ego)
+    self.v_ego = self.v_ego_hist[0]
+    ret = self.update(can_packets)
+
+    if ret is not None:
+      if not self.init_done:
+        self.estimate_dt(rcv_time)
+        return None
+
+      new_tracks = {}
+      for addr, radar_point in self.pts.items():
+        track_id = radar_point.trackId
+        if track_id not in self.tracks:
+          new_tracks[track_id] = MyTrack(track_id, radar_point, self.dt)
+        else:
+          new_tracks[track_id] = self.tracks[track_id]
+        new_tracks[track_id].update(radar_point)
+
+        radar_point.aLead = float(new_tracks[track_id].aLead)
+        radar_point.jLead = float(new_tracks[track_id].jLead)
+                
+      self.tracks = new_tracks
+      """
+      if self.last_timestamp is not None:
+        print(f"dt1 = {rcv_time - self.last_timestamp:.6f}")
+      if self.last_timestamp is not None and (rcv_time - self.last_timestamp) < 0.045:  # 0.05 - 0.005
+        if self.last_timestamp is not None:
+          print(f"dt3 = {rcv_time - self.last_timestamp:.6f}")
+        return None
+      if self.last_timestamp is not None:
+        print(f"dt2 = {rcv_time - self.last_timestamp:.6f}")
+      self.last_timestamp = rcv_time
+      """
+    return ret
+
+  def update(self, can_packets: list[tuple[int, list[CanData]]]) -> structs.RadarDataT | None:
+    self.frame += 1
+    if (self.frame % 5) == 0:  # 20 Hz is very standard
+      return structs.RadarData()
+    return None
+
+
 class CarInterfaceBase(ABC):
-  def __init__(self, CP: structs.CarParams, CarController, CarState):
+  CarState: 'CarStateBase'
+  CarController: 'CarControllerBase'
+  RadarInterface: 'RadarInterfaceBase' = RadarInterfaceBase
+
+  def __init__(self, CP: structs.CarParams):
     self.CP = CP
 
     self.frame = 0
     self.v_ego_cluster_seen = False
 
-    self.CS: CarStateBase = CarState(CP)
+    self.CS: CarStateBase = self.CarState(CP)
     self.can_parsers: dict[StrEnum, CANParser] = self.CS.get_can_parsers(CP)
 
     dbc_names = {bus: cp.dbc_name for bus, cp in self.can_parsers.items()}
-    self.CC: CarControllerBase = CarController(dbc_names, CP)
+    self.CC: CarControllerBase = self.CarController(dbc_names, CP)
 
     Params().put('LongitudinalPersonalityMax', "3")
 
@@ -307,75 +381,6 @@ class MyTrack:
     self.vRel = radar_point.vRel
 
     self.cnt += 1
-
-class RadarInterfaceBase(ABC):
-  def __init__(self, CP: structs.CarParams):
-    self.CP = CP
-    self.rcp = None
-    self.tracks: dict[int, MyTrack] = {}
-    self.pts: dict[int, structs.RadarData.RadarPoint] = {}
-    self.frame = 0
-    delay = CP.radarDelay
-    self.v_ego_hist = deque([0.0], maxlen=int(round(delay / DT_CTRL)) + 1)
-    self.v_ego = 0.0
-    self.last_timestamp = None
-    self.dt = None
-
-    self.init_samples = []
-    self.init_done = False
-
-  def estimate_dt(self, rcv_time):
-    if len(self.init_samples) > 20:
-      estimated_dt = np.mean(np.diff(self.init_samples))
-      self.dt = estimated_dt
-      self.init_done = True
-      print(f"Estimated radar dt: {self.dt} sec")
-    else:
-      self.init_samples.append(rcv_time)
-
-     
-  def update_carrot(self, v_ego, rcv_time, can_packets: list[tuple[int, list[CanData]]]) -> structs.RadarDataT | None:
-    self.v_ego_hist.append(v_ego)
-    self.v_ego = self.v_ego_hist[0]
-    ret = self.update(can_packets)
-
-    if ret is not None:
-      if not self.init_done:
-        self.estimate_dt(rcv_time)
-        return None
-
-      new_tracks = {}
-      for addr, radar_point in self.pts.items():
-        track_id = radar_point.trackId
-        if track_id not in self.tracks:
-          new_tracks[track_id] = MyTrack(track_id, radar_point, self.dt)
-        else:
-          new_tracks[track_id] = self.tracks[track_id]
-        new_tracks[track_id].update(radar_point)
-
-        radar_point.aLead = float(new_tracks[track_id].aLead)
-        radar_point.jLead = float(new_tracks[track_id].jLead)
-                
-      self.tracks = new_tracks
-      """
-      if self.last_timestamp is not None:
-        print(f"dt1 = {rcv_time - self.last_timestamp:.6f}")
-      if self.last_timestamp is not None and (rcv_time - self.last_timestamp) < 0.045:  # 0.05 - 0.005
-        if self.last_timestamp is not None:
-          print(f"dt3 = {rcv_time - self.last_timestamp:.6f}")
-        return None
-      if self.last_timestamp is not None:
-        print(f"dt2 = {rcv_time - self.last_timestamp:.6f}")
-      self.last_timestamp = rcv_time
-      """
-    return ret
-
-  def update(self, can_packets: list[tuple[int, list[CanData]]]) -> structs.RadarDataT | None:
-    self.frame += 1
-    if (self.frame % 5) == 0:  # 20 Hz is very standard
-      return structs.RadarData()
-    return None
-
 
 class CarStateBase(ABC):
   def __init__(self, CP: structs.CarParams):

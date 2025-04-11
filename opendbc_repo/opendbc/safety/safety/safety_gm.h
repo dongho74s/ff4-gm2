@@ -2,13 +2,23 @@
 
 #include "safety_declarations.h"
 
+// TODO: do checksum and counter checks. Add correct timestep, 0.1s for now.
+#define GM_COMMON_RX_CHECKS \
+    {.msg = {{0x184, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}}, \
+    {.msg = {{0x34A, 0, 5, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}}, \
+    {.msg = {{0x1E1, 0, 7, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}}, \
+    {.msg = {{0x1C4, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}}, \
+    {.msg = {{0xC9, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}}, \
+    {.msg = {{0xBE, 0, 6, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U},    /* Volt, Silverado, Acadia Denali */ \
+             {0xBE, 0, 7, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U},    /* Bolt EUV */ \
+             {0xBE, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}}},  /* Escalade */ \
+
 static const LongitudinalLimits *gm_long_limits;
 
 enum {
   GM_BTN_UNPRESS = 1,
   GM_BTN_RESUME = 2,
   GM_BTN_SET = 3,
-  GM_BTN_MAIN = 5,
   GM_BTN_CANCEL = 6,
 };
 
@@ -22,8 +32,6 @@ static bool gm_pcm_cruise = false;
 static bool gm_has_acc = true;
 static bool gm_pedal_long = false;
 static bool gm_cc_long = false;
-static bool gm_skip_relay_check = false;
-static bool gm_force_ascm = false;
 
 static void gm_rx_hook(const CANPacket_t *to_push) {
 
@@ -77,10 +85,6 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       brake_pressed = GET_BYTE(to_push, 1) >= 10U;
     }
 
-    if ((addr == 0xF1) && (gm_hw == GM_ASCM)) {
-      brake_pressed = GET_BYTE(to_push, 1) >= 15U;
-    }
-
     if ((addr == 0xC9) && (gm_hw == GM_CAM)) {
       // Bolt용 브레이크 감지
       brake_pressed = GET_BIT(to_push, 40U);
@@ -124,14 +128,6 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       gas_interceptor_prev = gas_interceptor;
 //      gm_pcm_cruise = false;
     }
-
-    bool stock_ecu_detected = (addr == 0x180);  // ASCMLKASteeringCmd
-
-    // Check ASCMGasRegenCmd only if we're blocking it
-    if (!gm_pcm_cruise && !gm_pedal_long && (addr == 0x2CB)) {
-      stock_ecu_detected = true;
-    }
-    generic_rx_checks(stock_ecu_detected);
   }
 }
 
@@ -215,15 +211,15 @@ static bool gm_tx_hook(const CANPacket_t *to_send) {
   return tx;
 }
 
-static int gm_fwd_hook(int bus_num, int addr) {
-  int bus_fwd = -1;
+static bool gm_fwd_hook(int bus_num, int addr) {
+  bool block_msg = false;
 
   if (gm_hw == GM_CAM) {
     if (bus_num == 0) {
       // block PSCMStatus; forwarded through openpilot to hide an alert from the camera
       bool is_pscm_msg = (addr == 0x184);
-      if (!is_pscm_msg) {
-        bus_fwd = 2;
+      if (is_pscm_msg) {
+        block_msg = true;
       }
     }
 
@@ -231,23 +227,18 @@ static int gm_fwd_hook(int bus_num, int addr) {
       // block lkas message and acc messages if gm_cam_long, forward all others
       bool is_lkas_msg = (addr == 0x180);
       bool is_acc_msg = (addr == 0x315) || (addr == 0x2CB) || (addr == 0x370);
-      bool block_msg = is_lkas_msg || (is_acc_msg && gm_cam_long);
-      if (!block_msg) {
-        bus_fwd = 0;
-      }
+      block_msg = is_lkas_msg || (is_acc_msg && gm_cam_long);
     }
+  } else {
+    block_msg = true;
   }
 
-  return bus_fwd;
+  return block_msg;
 }
 
 static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_CAM = 1;
-  const uint16_t GM_PARAM_CC_LONG = 4;
-  const uint16_t GM_PARAM_NO_CAMERA = 8;
-  const uint16_t GM_PARAM_HW_ASCM_LONG = 16;
-  const uint16_t GM_PARAM_NO_ACC = 32;
-  const uint16_t GM_PARAM_PEDAL_LONG = 64;  // TODO: this can be inferred
+  const uint16_t GM_PARAM_EV = 4;
 
   static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
     .max_gas = 3072,
@@ -256,12 +247,9 @@ static safety_config gm_init(uint16_t param) {
     .max_brake = 400,
   };
 
-  static const CanMsg GM_ASCM_TX_MSGS[] = {{0x180, 0, 4}, {0x409, 0, 7}, {0x40A, 0, 7}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7}, {0xBD, 0, 7},// pt bus
-                                           {0xA1, 1, 7}, {0x306, 1, 8}, {0x308, 1, 7}, {0x310, 1, 2},   // obs bus
-                                           {0x315, 2, 5}};  // ch bus
-
-  static const CanMsg GM_CC_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x1E1, 0, 7},  // pt bus
-                                              {0x184, 2, 8}, {0x1E1, 2, 7}};  // camera bus
+  static const CanMsg GM_ASCM_TX_MSGS[] = {{0x180, 0, 4, true}, {0x409, 0, 7, false}, {0x40A, 0, 7, false}, {0x2CB, 0, 8, true}, {0x370, 0, 6, false}, {0x200, 0, 6, false},  // pt bus
+                                           {0xA1, 1, 7, false}, {0x306, 1, 8, false}, {0x308, 1, 7, false}, {0x310, 1, 2, false},   // obs bus
+                                           {0x315, 2, 5, false}};  // ch bus
 
 
   static const LongitudinalLimits GM_CAM_LONG_LIMITS = {
@@ -271,56 +259,57 @@ static safety_config gm_init(uint16_t param) {
     .max_brake = 400,
   };
 
-  static const CanMsg GM_CAM_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x315, 0, 5}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7},  // pt bus
-                                               {0x184, 2, 8}};  // camera bus
+  static const CanMsg GM_CAM_LONG_TX_MSGS[] = {{0x180, 0, 4, true}, {0x315, 0, 5, false}, {0x2CB, 0, 8, true}, {0x370, 0, 6, false}, {0x200, 0, 6, false},  // pt bus
+                                               {0x184, 2, 8, false}};  // camera bus
 
 
-  // TODO: do checksum and counter checks. Add correct timestep, 0.1s for now.
   static RxCheck gm_rx_checks[] = {
-    {.msg = {{0x184, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
-    {.msg = {{0x34A, 0, 5, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
-    {.msg = {{0x1E1, 0, 7, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
-    {.msg = {{0xBE, 0, 6, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U},    // Volt, Silverado, Acadia Denali
-             {0xBE, 0, 7, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U},    // Bolt EUV
-             {0xBE, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}}},  // Escalade
-    {.msg = {{0xF1, 0, 6, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
-    {.msg = {{0x1C4, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
-    {.msg = {{0xC9, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
+    GM_COMMON_RX_CHECKS
   };
 
-  static const CanMsg GM_CAM_TX_MSGS[] = {{0x180, 0, 4}, {0x200, 0, 6}, {0x1E1, 0, 7},  // pt bus
-                                          {0x1E1, 2, 7}, {0x184, 2, 8}};  // camera bus
+  static RxCheck gm_ev_rx_checks[] = {
+    GM_COMMON_RX_CHECKS
+    {.msg = {{0xBD, 0, 7, .ignore_checksum = true, .ignore_counter = true, .frequency = 40U}, { 0 }, { 0 }}},
+  };
+
+  static const CanMsg GM_CAM_TX_MSGS[] = {{0x180, 0, 4, true}, {0x200, 0, 6, false},  // pt bus
+                                          {0x1E1, 2, 7, false}, {0x184, 2, 8, false}};  // camera bus
+
+
+  static const CanMsg GM_CC_LONG_TX_MSGS[] = {{0x180, 0, 4, true}, {0x1E1, 0, 7, false},  // pt bus
+                                              {0x184, 2, 8, false}, {0x1E1, 2, 7, false}};  // camera bus
 
 
   gm_hw = GET_FLAG(param, GM_PARAM_HW_CAM) ? GM_CAM : GM_ASCM;
-  gm_force_ascm = GET_FLAG(param, GM_PARAM_HW_ASCM_LONG);
 
-  if ((gm_hw == GM_ASCM) || gm_force_ascm) {
+  if (gm_hw == GM_ASCM) {
     gm_long_limits = &GM_ASCM_LONG_LIMITS;
   } else if (gm_hw == GM_CAM) {
     gm_long_limits = &GM_CAM_LONG_LIMITS;
   } else {
   }
 
-#ifdef ALLOW_DEBUG
-  const uint16_t GM_PARAM_HW_CAM_LONG = 2;
-  gm_cam_long = GET_FLAG(param, GM_PARAM_HW_CAM_LONG) && !gm_cc_long;
-#endif
+  const uint16_t GM_PARAM_PEDAL_LONG = 32;
   gm_pedal_long = GET_FLAG(param, GM_PARAM_PEDAL_LONG);
+
+  const uint16_t GM_PARAM_CC_LONG = 64;
   gm_cc_long = GET_FLAG(param, GM_PARAM_CC_LONG);
-  gm_pcm_cruise = (gm_hw == GM_CAM) && !gm_cam_long && !gm_force_ascm && !gm_pedal_long;
-  gm_skip_relay_check = GET_FLAG(param, GM_PARAM_NO_CAMERA);
+
+  const uint16_t GM_PARAM_HW_CAM_LONG = 2;
+  gm_cam_long = GET_FLAG(param, GM_PARAM_HW_CAM_LONG);
+  gm_pcm_cruise = (gm_hw == GM_CAM) && !gm_cam_long && !gm_pedal_long;
+
+  const uint16_t GM_PARAM_NO_ACC = 8;
   gm_has_acc = !GET_FLAG(param, GM_PARAM_NO_ACC);
 
-  const uint16_t GM_PARAM_PEDAL_INTERCEPTOR = 128;
+  const uint16_t GM_PARAM_PEDAL_INTERCEPTOR = 16;
   enable_gas_interceptor = GET_FLAG(param, GM_PARAM_PEDAL_INTERCEPTOR);
-  if (enable_gas_interceptor) {
-      print("GM Pedal Interceptor Enabled\n");
-  }
-  else print("GM Pedal Interceptor Disabled\n");
 
-  safety_config ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_ASCM_TX_MSGS);
+  safety_config ret;
   if (gm_hw == GM_CAM) {
+    // FIXME: cppcheck thinks that gm_cam_long is always false. This is not true
+    // if ALLOW_DEBUG is defined but cppcheck is run without ALLOW_DEBUG
+    // cppcheck-suppress knownConditionTrueFalse
     if (gm_cc_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CC_LONG_TX_MSGS);
     } else if (gm_cam_long) {
@@ -328,6 +317,13 @@ static safety_config gm_init(uint16_t param) {
     } else {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_TX_MSGS);
     }
+  } else {
+    ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_ASCM_TX_MSGS);
+  }
+
+  const bool gm_ev = GET_FLAG(param, GM_PARAM_EV);
+  if (gm_ev) {
+    SET_RX_CHECKS(gm_ev_rx_checks, ret);
   }
   return ret;
 }

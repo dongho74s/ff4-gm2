@@ -11,7 +11,7 @@ from openpilot.common.swaglog import cloudlog
 import numpy as np
 from collections import deque
 
-from opendbc.car.car_helpers import get_car_interface
+from opendbc.car.car_helpers import interfaces
 from opendbc.car.vehicle_model import VehicleModel
 
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature, get_lag_adjusted_curvature
@@ -40,7 +40,7 @@ class Controls:
     self.CP = messaging.log_from_bytes(self.params.get("CarParams", block=True), car.CarParams)
     cloudlog.info("controlsd got CarParams")
 
-    self.CI = get_car_interface(self.CP)
+    self.CI = interfaces[self.CP.carFingerprint](self.CP)
 
     self.disable_dm = False
 

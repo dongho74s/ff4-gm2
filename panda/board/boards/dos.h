@@ -103,8 +103,7 @@ static void dos_set_fan_enabled(bool enabled){
 }
 
 static void dos_set_siren(bool enabled){
-    UNUSED(enabled);
-  //set_gpio_output(GPIOC, 12, enabled);
+  set_gpio_output(GPIOC, 12, enabled);
 }
 
 static bool dos_read_som_gpio (void){

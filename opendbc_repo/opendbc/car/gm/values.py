@@ -4,7 +4,7 @@ from enum import Enum, IntFlag
 import numpy as np
 from opendbc.car import Bus, PlatformConfig, DbcDict, Platforms, CarSpecs
 from opendbc.car.structs import CarParams
-from opendbc.car.docs_definitions import CarHarness, CarDocs, CarParts
+from opendbc.car.docs_definitions import CarDocs, CarHarness, CarParts, Column
 from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries
 
 Ecu = CarParams.Ecu
@@ -83,12 +83,12 @@ class CarControllerParams:
 class GMSafetyFlags(IntFlag):
   HW_CAM = 1
   HW_CAM_LONG = 2
-  CC_LONG = 4
-  NO_CAMERA = 8
-  HW_ASCM_LONG = 16
-  NO_ACC = 32
-  PEDAL_LONG = 64  # TODO: This can be inferred
-  GAS_INTERCEPTOR = 128
+  EV = 4
+  NO_ACC = 8
+  GAS_INTERCEPTOR = 16
+  PEDAL_LONG = 32
+  CC_LONG = 64
+
 
 @dataclass
 class GMCarDocs(CarDocs):
@@ -117,8 +117,14 @@ class GMPlatformConfig(PlatformConfig):
     Bus.chassis: 'gm_global_a_chassis',
   })
 
-
 @dataclass
+class GMCT6PlatformConfig(PlatformConfig):
+  dbc_dict: DbcDict = field(default_factory=lambda: {
+    Bus.pt: 'cadillac_ct6_powertrain',
+    Bus.radar: 'cadillac_ct6_object',
+    Bus.chassis: 'cadillac_ct6_chassis',
+  })
+
 class GMASCMPlatformConfig(GMPlatformConfig):
   def init(self):
     # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
@@ -148,6 +154,10 @@ class CAR(Platforms):
   )
   CHEVROLET_MALIBU = GMASCMPlatformConfig(
     [GMCarDocs("Chevrolet Malibu Premier 2017")],
+    GMCarSpecs(mass=1496, wheelbase=2.83, steerRatio=15.8, centerToFrontRatio=0.4),
+  )
+  CHEVROLET_MALIBU_2019 = GMSDGMPlatformConfig(
+    [GMCarDocs("Chevrolet Malibu Premier 2019")],
     GMCarSpecs(mass=1496, wheelbase=2.83, steerRatio=15.8, centerToFrontRatio=0.4),
   )
   GMC_ACADIA = GMASCMPlatformConfig(
@@ -200,7 +210,7 @@ class CAR(Platforms):
     [GMCarDocs("Cadillac XT4 2023", "Driver Assist Package")],
     GMCarSpecs(mass=1660, wheelbase=2.78, steerRatio=14.4, centerToFrontRatio=0.4),
   )
-  CADILLAC_CT6_2019 = GMSDGMPlatformConfig(
+  CADILLAC_CT6_2019 = GMCT6PlatformConfig(
     [GMCarDocs("Cadillac CT6 2019", "Driver Assist Package")],
     GMCarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
   ) 
@@ -240,6 +250,10 @@ class CAR(Platforms):
   CHEVROLET_EQUINOX_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Equinox NO ACC 2019-22")],
     CHEVROLET_EQUINOX.specs,
+  )
+  CHEVROLET_SUBURBAN = GMPlatformConfig(
+    [GMCarDocs("Chevrolet Suburban Premier 2016-20")],
+    GMCarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
   )
   CHEVROLET_SUBURBAN_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Suburban NO ACC 2016-20")],
@@ -293,7 +307,6 @@ class CanBus:
 class GMFlags(IntFlag):
   PEDAL_LONG = 1
   CC_LONG = 2
-  NO_CAMERA = 4
 
 
 # In a Data Module, an identifier is a string used to recognize an object,
@@ -363,7 +376,7 @@ ALT_ACCS = {CAR.GMC_YUKON}
 CAMERA_ACC_CAR.update(CC_ONLY_CAR)
 
 # We're integrated at the Safety Data Gateway Module on these cars
-SDGM_CAR = {CAR.CADILLAC_XT4, CAR.CADILLAC_CT6_2019, CAR.CHEVROLET_VOLT_2019, CAR.CHEVROLET_TRAVERSE}
+SDGM_CAR = {CAR.CADILLAC_XT4, CAR.CADILLAC_CT6_2019, CAR.CHEVROLET_MALIBU_2019, CAR.CHEVROLET_VOLT_2019, CAR.CHEVROLET_TRAVERSE}
 
 STEER_THRESHOLD = 1.0
 

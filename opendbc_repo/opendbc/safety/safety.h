@@ -10,7 +10,7 @@
 #include "safety/safety_tesla.h"
 #include "safety/safety_gm.h"
 #include "safety/safety_ford.h"
-#include "safety/safety_hyundai.h"
+//#include "safety/safety_hyundai.h"
 #include "safety/safety_chrysler.h"
 #include "safety/safety_rivian.h"
 #include "safety/safety_subaru.h"
@@ -23,9 +23,9 @@
 #include "safety/safety_body.h"
 
 // CAN-FD only safety modes
-#ifdef CANFD
-#include "safety/safety_hyundai_canfd.h"
-#endif
+//#ifdef CANFD
+//#include "safety/safety_hyundai_canfd.h"
+//#endif
 
 // from cereal.car.CarParams.SafetyModel
 #define SAFETY_SILENT 0U
@@ -215,8 +215,21 @@ bool safety_rx_hook(const CANPacket_t *to_push) {
   bool controls_allowed_prev = controls_allowed;
 
   bool valid = rx_msg_safety_check(to_push, &current_safety_config, current_hooks);
-  if (valid) {
+  bool whitelisted = get_addr_check_index(to_push, current_safety_config.rx_checks, current_safety_config.rx_checks_len) != -1;
+  if (valid && whitelisted) {
     current_hooks->rx(to_push);
+  }
+
+  // the relay malfunction hook runs on all incoming rx messages.
+  // check all tx msgs for liveness on sending bus if specified.
+  // used to detect a relay malfunction or control messages from disabled ECUs like the radar
+  const int bus = GET_BUS(to_push);
+  const int addr = GET_ADDR(to_push);
+  for (int i = 0; i < current_safety_config.tx_msgs_len; i++) {
+    const CanMsg *m = &current_safety_config.tx_msgs[i];
+    if (m->check_relay) {
+      generic_rx_checks((m->addr == addr) && (m->bus == bus));
+    }
   }
 
   // reset mismatches on rising edge of controls_allowed to avoid rare race condition
@@ -227,69 +240,55 @@ bool safety_rx_hook(const CANPacket_t *to_push) {
   return valid;
 }
 
-int _prev_not_allowed_addr = -1;
 static bool tx_msg_safety_check(const CANPacket_t *to_send, const CanMsg msg_list[], int len) {
   int addr = GET_ADDR(to_send);
   int bus = GET_BUS(to_send);
   int length = GET_LEN(to_send);
 
-  bool allowed = false;
+  bool whitelisted = false;
   for (int i = 0; i < len; i++) {
     if ((addr == msg_list[i].addr) && (bus == msg_list[i].bus) && (length == msg_list[i].len)) {
-      allowed = true;
+      whitelisted = true;
       break;
     }
   }
-  if (!allowed && _prev_not_allowed_addr != addr && len > 0) {
-    print("allowed addr = ");
-    for(int i=0;i<len;i++) {putui((uint32_t)msg_list[i].addr); print(",");}
-    print("\nbus = ");
-    for(int i=0;i<len;i++) {putui((uint32_t)msg_list[i].bus); print(",");}
-    print("\nlen = ");
-    for(int i=0;i<len;i++) {putui((uint32_t)msg_list[i].len); print(",");}
-    print("\n");
-    _prev_not_allowed_addr = addr;
-  }
-  return allowed;
+  return whitelisted;
 }
 
-int _prev_error_addr = -1;
 bool safety_tx_hook(CANPacket_t *to_send) {
-  bool allowed = tx_msg_safety_check(to_send, current_safety_config.tx_msgs, current_safety_config.tx_msgs_len);
+  bool whitelisted = tx_msg_safety_check(to_send, current_safety_config.tx_msgs, current_safety_config.tx_msgs_len);
   if ((current_safety_mode == SAFETY_ALLOUTPUT) || (current_safety_mode == SAFETY_ELM327)) {
-    allowed = true;
+    whitelisted = true;
   }
 
-  const bool safety_allowed = current_hooks->tx(to_send);
-
-  int addr = GET_ADDR(to_send);
-  if ((!allowed || !safety_allowed) && (addr!=_prev_error_addr)) {
-      int bus = GET_BUS(to_send);
-      int length = GET_LEN(to_send);
-      print("not allowed:");
-      if (!allowed) print("nowallowed,");
-      if (!safety_allowed) print("safety_allowed,");
-      print("addr = ");
-      putui((uint32_t)addr);
-      print(" bus=");
-      putui((uint32_t)bus);
-      print(" len=");
-      putui((uint32_t)length);
-      print(" ctrl=");
-      putui((uint32_t)controls_allowed);
-      print(" main=");
-      putui((uint32_t)acc_main_on);
-      print(" rely=");
-      putui((uint32_t)relay_malfunction);
-      print("\n");
-      _prev_error_addr = addr;
+  bool safety_allowed = false;
+  if (whitelisted) {
+    safety_allowed = current_hooks->tx(to_send);
   }
 
-  return !relay_malfunction && allowed && safety_allowed;
+  return !relay_malfunction && whitelisted && safety_allowed;
+}
+
+static int get_fwd_bus(int bus_num) {
+  int destination_bus;
+  if (bus_num == 0) {
+    destination_bus = 2;
+  } else if (bus_num == 2) {
+    destination_bus = 0;
+  } else {
+    destination_bus = -1;
+  }
+  return destination_bus;
 }
 
 int safety_fwd_hook(int bus_num, int addr) {
-  return (relay_malfunction ? -1 : current_hooks->fwd(bus_num, addr));
+  bool blocked = relay_malfunction || current_safety_config.disable_forwarding;
+
+  if (!blocked && (current_hooks->fwd != NULL)) {
+    blocked = current_hooks->fwd(bus_num, addr);
+  }
+
+  return blocked ? -1 : get_fwd_bus(bus_num);
 }
 
 bool get_longitudinal_allowed(void) {
@@ -360,7 +359,7 @@ static void relay_malfunction_set(void) {
   fault_occurred(FAULT_RELAY_MALFUNCTION);
 }
 
-void generic_rx_checks(bool stock_ecu_detected) {
+static void generic_rx_checks(bool stock_ecu_detected) {
   // allow 1s of transition timeout after relay changes state before assessing malfunctioning
   const uint32_t RELAY_TRNS_TIMEOUT = 1U;
 
@@ -383,7 +382,7 @@ void generic_rx_checks(bool stock_ecu_detected) {
   regen_braking_prev = regen_braking;
 
   // check if stock ECU is on bus broken by car harness
-  if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && stock_ecu_detected && !gm_skip_relay_check) {
+  if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && stock_ecu_detected) {
     relay_malfunction_set();
   }
 }
@@ -409,20 +408,20 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
     {SAFETY_ELM327, &elm327_hooks},
     {SAFETY_GM, &gm_hooks},
     {SAFETY_HONDA_BOSCH, &honda_bosch_hooks},
-    {SAFETY_HYUNDAI, &hyundai_hooks},
+    //{SAFETY_HYUNDAI, &hyundai_hooks},
     {SAFETY_CHRYSLER, &chrysler_hooks},
     {SAFETY_SUBARU, &subaru_hooks},
     {SAFETY_VOLKSWAGEN_MQB, &volkswagen_mqb_hooks},
     {SAFETY_NISSAN, &nissan_hooks},
     {SAFETY_NOOUTPUT, &nooutput_hooks},
-    {SAFETY_HYUNDAI_LEGACY, &hyundai_legacy_hooks},
+    //{SAFETY_HYUNDAI_LEGACY, &hyundai_legacy_hooks},
     {SAFETY_MAZDA, &mazda_hooks},
     {SAFETY_BODY, &body_hooks},
     {SAFETY_FORD, &ford_hooks},
     {SAFETY_RIVIAN, &rivian_hooks},
-#ifdef CANFD
-    {SAFETY_HYUNDAI_CANFD, &hyundai_canfd_hooks},
-#endif
+//#ifdef CANFD
+    //{SAFETY_HYUNDAI_CANFD, &hyundai_canfd_hooks},
+//#endif
 #ifdef ALLOW_DEBUG
     {SAFETY_TESLA, &tesla_hooks},
     {SAFETY_SUBARU_PREGLOBAL, &subaru_preglobal_hooks},
@@ -469,6 +468,7 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
   current_safety_config.rx_checks_len = 0;
   current_safety_config.tx_msgs = NULL;
   current_safety_config.tx_msgs_len = 0;
+  current_safety_config.disable_forwarding = false;
 
   int set_status = -1;  // not set
   int hook_config_count = sizeof(safety_hook_registry) / sizeof(safety_hook_config);
@@ -486,6 +486,7 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
     current_safety_config.rx_checks_len = cfg.rx_checks_len;
     current_safety_config.tx_msgs = cfg.tx_msgs;
     current_safety_config.tx_msgs_len = cfg.tx_msgs_len;
+    current_safety_config.disable_forwarding = cfg.disable_forwarding;
     // reset all dynamic fields in addr struct
     for (int j = 0; j < current_safety_config.rx_checks_len; j++) {
       current_safety_config.rx_checks[j].status = (RxStatus){0};

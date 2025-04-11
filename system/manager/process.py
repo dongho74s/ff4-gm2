@@ -211,10 +211,7 @@ class PythonProcess(ManagerProcess):
   def prepare(self) -> None:
     if self.enabled:
       cloudlog.info(f"preimporting {self.module}")
-      try:
-        importlib.import_module(self.module)
-      except Exception as e:
-        print(f"failed to import {self.module}: {e}")
+      importlib.import_module(self.module)
 
   def start(self) -> None:
     # In case we only tried a non blocking stop we need to stop it before restarting
@@ -224,8 +221,12 @@ class PythonProcess(ManagerProcess):
     if self.proc is not None:
       return
 
+    # TODO: this is just a workaround for this tinygrad check:
+    # https://github.com/tinygrad/tinygrad/blob/ac9c96dae1656dc220ee4acc39cef4dd449aa850/tinygrad/device.py#L26
+    name = self.name if "modeld" not in self.name else "MainProcess"
+
     cloudlog.info(f"starting python {self.module}")
-    self.proc = Process(name=self.name, target=self.launcher, args=(self.module, self.name))
+    self.proc = Process(name=name, target=self.launcher, args=(self.module, self.name))
     self.proc.start()
     self.watchdog_seen = False
     self.shutting_down = False

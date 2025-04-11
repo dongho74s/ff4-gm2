@@ -320,13 +320,14 @@ struct CarState {
 # ******* radar state @ 20hz *******
 
 struct RadarData @0x888ad6581cf0aacb {
-  errors @0 :List(Error);
+  errors @3 :Error;
   points @1 :List(RadarPoint);
 
-  enum Error {
-    canError @0;
-    fault @1;
-    wrongConfig @2;
+  struct Error {
+    canError @0 :Bool;
+    radarFault @1 :Bool;
+    wrongConfig @2 :Bool;
+    radarUnavailableTemporary @3 :Bool;  # radar data is temporarily unavailable due to conditions the car sets
   }
 
   # similar to LiveTracks
@@ -351,8 +352,15 @@ struct RadarData @0x888ad6581cf0aacb {
     jLead @9 :Float32; # m/s^3
   }
 
+  enum ErrorDEPRECATED {
+    canError @0;
+    fault @1;
+    wrongConfig @2;
+  }
+
   # deprecated
   canMonoTimesDEPRECATED @2 :List(UInt64);
+  errorsDEPRECATED @0 :List(ErrorDEPRECATED);
 }
 
 # ******* car controls @ 100hz *******
@@ -458,6 +466,7 @@ struct CarControl {
       promptRepeat @7;
       promptDistracted @8;
 
+      audioTurn @9;
       longEngaged @10;
       longDisengaged @11;
       trafficSignGreen @12;
@@ -471,7 +480,6 @@ struct CarControl {
       bsdWarning @20;
       speedDown @21;
       stopStop @22;
-      audioTurn @9;
       reverseGear @23;
       audio1 @24;
       audio2 @25;

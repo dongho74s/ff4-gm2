@@ -43,8 +43,6 @@ class CarSpecificEvents:
 
     self.cruise_buttons: deque = deque([], maxlen=HYUNDAI_PREV_BUTTON_SAMPLES)
 
-    self.do_shutdown = False
-
   def update(self, CS: car.CarState, CS_prev: car.CarState, CC: car.CarControl):
     if self.CP.brand in ('body', 'mock'):
       events = Events()
@@ -169,9 +167,8 @@ class CarSpecificEvents:
       events.add(EventName.doorOpen)
     if CS.seatbeltUnlatched:
       events.add(EventName.seatbeltNotLatched)
-    if CS.gearShifter == GearShifter.park:
-      events.add(EventName.wrongGear)
-    if CS.gearShifter == GearShifter.neutral:
+    if CS.gearShifter != GearShifter.drive and (extra_gears is None or
+       CS.gearShifter not in extra_gears):
       events.add(EventName.wrongGear)
     if CS.gearShifter == GearShifter.reverse:
       events.add(EventName.reverseGear)
@@ -216,9 +213,6 @@ class CarSpecificEvents:
       # TODO: only check the cancel button with openpilot longitudinal on all brands to match panda safety
       if b.type == ButtonType.cancel and (allow_button_cancel or not self.CP.pcmCruise):
         events.add(EventName.buttonCancel)
-        if CS.gearShifter == GearShifter.park and not self.do_shutdown:
-          self.do_shutdown = True
-          Params().put_bool("DoShutdown", True)
 
     # Handle permanent and temporary steering faults
     self.steering_unpressed = 0 if CS.steeringPressed else self.steering_unpressed + 1

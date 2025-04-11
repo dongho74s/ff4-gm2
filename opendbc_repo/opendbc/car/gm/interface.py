@@ -7,7 +7,9 @@ from openpilot.common.params import Params
 from opendbc.car import get_safety_config, get_friction, structs
 from opendbc.car.common.basedir import BASEDIR
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.gm.radar_interface import RADAR_HEADER_MSG
+from opendbc.car.gm.carcontroller import CarController
+from opendbc.car.gm.carstate import CarState
+from opendbc.car.gm.radar_interface import RadarInterface, RADAR_HEADER_MSG
 from opendbc.car.gm.values import CAR, CarControllerParams, EV_CAR, CAMERA_ACC_CAR, CanBus, GMFlags, CC_ONLY_CAR, SDGM_CAR, CruiseButtons, GMSafetyFlags, ALT_ACCS
 from opendbc.car.interfaces import CarInterfaceBase, TorqueFromLateralAccelCallbackType, FRICTION_THRESHOLD, LatControlInputs, NanoFFModel
 
@@ -29,6 +31,10 @@ CAM_MSG = 0x320  # AEBCmd
                  # TODO: Is this always linked to camera presence?
 
 class CarInterface(CarInterfaceBase):
+  CarState = CarState
+  CarController = CarController
+  RadarInterface = RadarInterface
+
   @staticmethod
   def get_pid_accel_limits(CP, current_speed, cruise_speed):
     return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
@@ -64,8 +70,8 @@ class CarInterface(CarInterfaceBase):
     # ToDo: To generalize to other GMs, explore tanh function as the nonlinear
     non_linear_torque_params = NON_LINEAR_TORQUE_PARAMS.get(self.CP.carFingerprint)
     assert non_linear_torque_params, "The params are not defined"
-    a, b, c, d = non_linear_torque_params
-    steer_torque = (sig(latcontrol_inputs.lateral_acceleration * a) * b) + (latcontrol_inputs.lateral_acceleration * c) + d
+    a, b, c, _ = non_linear_torque_params
+    steer_torque = (sig(latcontrol_inputs.lateral_acceleration * a) * b) + (latcontrol_inputs.lateral_acceleration * c)
     return float(steer_torque) + friction
 
   def torque_from_lateral_accel_neural(self, latcontrol_inputs: LatControlInputs, torque_params: structs.CarParams.LateralTorqueTuning,
@@ -103,6 +109,7 @@ class CarInterface(CarInterfaceBase):
 
     if candidate in EV_CAR:
       ret.transmissionType = TransmissionType.direct
+      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.EV.value
     else:
       ret.transmissionType = TransmissionType.automatic
 
@@ -150,10 +157,6 @@ class CarInterface(CarInterfaceBase):
       # Tuning
       ret.longitudinalTuning.kpV = [1.0]
       ret.longitudinalTuning.kiV = [0.3]
-
-      if ret.enableGasInterceptorDEPRECATED:
-        # Need to set ASCM long limits when using pedal interceptor, instead of camera ACC long limits
-        ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.HW_ASCM_LONG.value
 
     # These cars have been put into dashcam only due to both a lack of users and test coverage.
     # These cars likely still work fine. Once a user confirms each car works and a test route is
@@ -208,7 +211,7 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.2
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-    elif candidate in (CAR.CHEVROLET_MALIBU, CAR.CHEVROLET_MALIBU_CC):
+    elif candidate in (CAR.CHEVROLET_MALIBU, CAR.CHEVROLET_MALIBU_2019, CAR.CHEVROLET_MALIBU_CC):
       ret.steerActuatorDelay = 0.2
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
@@ -345,11 +348,5 @@ class CarInterface(CarInterfaceBase):
 
     if candidate in CC_ONLY_CAR:
       ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.NO_ACC.value
-
-    # Exception for flashed cars, or cars whose camera was removed
-    if (ret.networkLocation == NetworkLocation.fwdCamera or candidate in CC_ONLY_CAR) and CAM_MSG not in fingerprint[
-      CanBus.CAMERA] and not candidate in SDGM_CAR:
-      ret.flags |= GMFlags.NO_CAMERA.value
-      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.NO_CAMERA.value
 
     return ret

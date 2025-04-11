@@ -73,6 +73,9 @@ const struct i2c_random_wr_payload init_array_ox03c10[] = {
   {0x3882, 0x8}, {0x3883, 0x0D},
   {0x3836, 0x1F}, {0x3837, 0x40},
 
+  // causes issues on some devices
+  //{0x3822, 0x33},  // wait for pulse before first frame
+
   {0x3892, 0x44},
   {0x3823, 0x41},
 
