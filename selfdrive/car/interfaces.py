@@ -446,8 +446,8 @@ class CarInterfaceBase(ABC):
       if cs_out.cruiseState.enabled and not self.CS.out.cruiseState.enabled and allow_enable:
         events.add(EventName.pcmEnable)
       elif not cs_out.cruiseState.enabled:
-        events.add(EventName.pcmDisable)  #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨. kans: 다시적용함
-        #pass
+        #events.add(EventName.pcmDisable)  #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨. kans: 다시적용함
+        pass
 
     return events
 
