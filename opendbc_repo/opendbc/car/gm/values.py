@@ -241,6 +241,10 @@ class CAR(Platforms):
     [GMCarDocs("Chevrolet Equinox NO ACC 2019-22")],
     CHEVROLET_EQUINOX.specs,
   )
+  CHEVROLET_SUBURBAN = GMPlatformConfig(
+    [GMCarDocs("Chevrolet Suburban Premier 2016-20")],
+    GMCarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
+  )
   CHEVROLET_SUBURBAN_CC = GMPlatformConfig(
     [GMCarDocs("Chevrolet Suburban NO ACC 2016-20")],
     GMCarSpecs(mass=2731, wheelbase=3.302, steerRatio=17.3, centerToFrontRatio=0.49),
