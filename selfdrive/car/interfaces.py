@@ -174,8 +174,7 @@ class CarInterfaceBase(ABC):
       self.cp_body = self.CS.get_body_can_parser(CP)
       self.cp_chassis = self.CS.get_chassis_can_parser(CP) # brakeLights
       self.cp_loopback = self.CS.get_loopback_can_parser(CP)
-      self.cp_gmlan = self.CS.get_gmlan_can_parser(CP)
-      self.can_parsers = [self.cp, self.cp_cam, self.cp_adas, self.cp_body, self.cp_loopback, self.cp_chassis, self.cp_gmlan]
+      self.can_parsers = [self.cp, self.cp_cam, self.cp_adas, self.cp_body, self.cp_loopback, self.cp_chassis]
 
     self.CC = None
     if CarController is not None:
@@ -447,7 +446,7 @@ class CarInterfaceBase(ABC):
       if cs_out.cruiseState.enabled and not self.CS.out.cruiseState.enabled and allow_enable:
         events.add(EventName.pcmEnable)
       elif not cs_out.cruiseState.enabled:
-        #events.add(EventName.pcmDisable) #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨
+        #events.add(EventName.pcmDisable)  #ajouatom: MAD모드 구현시 이것만 코멘트하면 됨.
         pass
 
     return events
@@ -594,9 +593,6 @@ class CarStateBase(ABC):
   def get_loopback_can_parser(CP):
     return None
 
-  @staticmethod
-  def get_gmlan_can_parser(CP):
-    return None
 
 # interface-specific helpers
 
