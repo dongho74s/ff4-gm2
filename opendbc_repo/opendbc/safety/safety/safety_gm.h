@@ -126,6 +126,7 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       int gas_interceptor = GM_GET_INTERCEPTOR(to_push);
       gas_pressed = gas_interceptor > GM_GAS_INTERCEPTOR_THRESHOLD;
       gas_interceptor_prev = gas_interceptor;
+//      gm_pcm_cruise = false;
     }
   }
 }
@@ -303,12 +304,8 @@ static safety_config gm_init(uint16_t param) {
 
   const uint16_t GM_PARAM_PEDAL_INTERCEPTOR = 16;
   enable_gas_interceptor = GET_FLAG(param, GM_PARAM_PEDAL_INTERCEPTOR);
-  if (enable_gas_interceptor) {
-      print("GM Pedal Interceptor Enabled\n");
-  }
-  else print("GM Pedal Interceptor Disabled\n");
 
-  safety_config ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_ASCM_TX_MSGS);
+  safety_config ret;
   if (gm_hw == GM_CAM) {
     // FIXME: cppcheck thinks that gm_cam_long is always false. This is not true
     // if ALLOW_DEBUG is defined but cppcheck is run without ALLOW_DEBUG
@@ -320,7 +317,8 @@ static safety_config gm_init(uint16_t param) {
     } else {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_TX_MSGS);
     }
-
+  } else {
+    ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_ASCM_TX_MSGS);
   }
 
   const bool gm_ev = GET_FLAG(param, GM_PARAM_EV);
