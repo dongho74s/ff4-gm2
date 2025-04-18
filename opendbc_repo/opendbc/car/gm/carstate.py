@@ -7,7 +7,7 @@ from opendbc.can.parser import CANParser
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, SDGM_CAR, ALT_ACCS, GMFlags, \
+from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, SDGM_CAR, ALT_ACCS, \
   CC_ONLY_CAR, CAMERA_ACC_CAR, CAR
 
 ButtonType = structs.CarState.ButtonEvent.Type
@@ -32,17 +32,10 @@ class CarState(CarStateBase):
     self.loopback_lka_steering_cmd_ts_nanos = 0
     self.pt_lka_steering_cmd_counter = 0
     self.cam_lka_steering_cmd_counter = 0
-    self.is_metric = False
-
-    # GAP_DIST
-    self.prev_distance_button = False
-    self.distance_button_pressed = False
-
-    self.cruise_buttons = 0
     self.buttons_counter = 0
-    self.single_pedal_mode = False
-    self.pedal_steady = 0.
-
+    self.cruise_buttons = 0
+    # GAP_DIST
+    self.distance_button = 0
 
     # cruiseMain default(test from nd0706-vision)
     self.cruiseMain_on = True if Params().get_int("AutoEngage") == 2 else False
@@ -64,14 +57,14 @@ class CarState(CarStateBase):
     ret = structs.CarState()
 
     prev_cruise_buttons = self.cruise_buttons
-    self.prev_distance_button = self.distance_button_pressed
+    prev_distance_button = self.distance_button
     self.cruise_buttons = pt_cp.vl["ASCMSteeringButton"]["ACCButtons"]
-    self.distance_button_pressed = pt_cp.vl["ASCMSteeringButton"]["DistanceButton"] != 0
+    self.distance_button = pt_cp.vl["ASCMSteeringButton"]["DistanceButton"]
     self.buttons_counter = pt_cp.vl["ASCMSteeringButton"]["RollingCounter"]
 
     self.pscm_status = copy.copy(pt_cp.vl["PSCMStatus"])
     # GAP_DIST
-    if self.cruise_buttons in [CruiseButtons.UNPRESS, CruiseButtons.INIT] and self.distance_button_pressed:
+    if self.cruise_buttons in [CruiseButtons.UNPRESS, CruiseButtons.INIT] and self.distance_button:
       self.cruise_buttons = CruiseButtons.GAP_DIST
 
     if self.CP.enableBsm:
@@ -119,15 +112,9 @@ class CarState(CarStateBase):
     # Regen braking is braking
     if self.CP.transmissionType == TransmissionType.direct:
       ret.regenBraking = pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"] != 0
-      self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
 
-    if self.CP.enableGasInterceptorDEPRECATED:
-      ret.gas = (pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS"] + pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS2"]) / 2.
-      threshold = 15 if self.CP.carFingerprint in CAMERA_ACC_CAR else 4
-      ret.gasPressed = ret.gas > threshold
-    else:
-      ret.gas = pt_cp.vl["AcceleratorPedal2"]["AcceleratorPedal2"] / 254.
-      ret.gasPressed = ret.gas > 1e-5
+    ret.gas = pt_cp.vl["AcceleratorPedal2"]["AcceleratorPedal2"] / 254.
+    ret.gasPressed = ret.gas > 1e-5
 
     ret.steeringAngleDeg = pt_cp.vl["PSCMSteeringAngle"]["SteeringWheelAngle"]
     ret.steeringRateDeg = pt_cp.vl["PSCMSteeringAngle"]["SteeringWheelRate"]
@@ -165,7 +152,7 @@ class CarState(CarStateBase):
     if self.CP.carFingerprint not in CAR.CHEVROLET_VOLT:
       ret.cruiseState.standstill = False
     if self.CP.networkLocation == NetworkLocation.fwdCamera:
-      if self.CP.carFingerprint not in (ALT_ACCS | CC_ONLY_CAR):
+      if self.CP.carFingerprint not in ALT_ACCS:
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
         # This FCW signal only works for SDGM cars. CAM cars send FCW on GMLAN but this bit is always 0 for them
         ret.stockFcw = cam_cp.vl["ASCMActiveCruiseControlStatus"]["FCWAlert"] != 0
@@ -190,15 +177,13 @@ class CarState(CarStateBase):
     ret.vCluRatio = 1.0 if self.CP.carFingerprint in CAR.CHEVROLET_VOLT else 0.96
 
     # Don't add event if transitioning from INIT, unless it's to an actual button
-    buttonEvents = [] # kans
     if self.cruise_buttons != CruiseButtons.UNPRESS or prev_cruise_buttons != CruiseButtons.INIT:
-      buttonEvents.extend(create_button_events(self.cruise_buttons, prev_cruise_buttons, BUTTONS_DICT,
-                                               unpressed_btn=CruiseButtons.UNPRESS)) # kans
-    # kans : long_button GAP for cruise Mode(safety, ecco, high-speed..)
-    if self.distance_button_pressed:
-      buttonEvents.append(car.CarState.ButtonEvent(pressed=True, type=ButtonType.gapAdjustCruise))
-    ret.buttonEvents = buttonEvents # kans
-
+      ret.buttonEvents = [
+        *create_button_events(self.cruise_buttons, prev_cruise_buttons, BUTTONS_DICT,
+                              unpressed_btn=CruiseButtons.UNPRESS),
+        *create_button_events(self.distance_button, prev_distance_button,
+                              {1: ButtonType.gapAdjustCruise})
+      ]
 
     return ret
 
@@ -221,19 +206,11 @@ class CarState(CarStateBase):
       ("ECMAcceleratorPos", 80),
     ]
 
+    if CP.transmissionType == TransmissionType.direct:
+      pt_messages.append(("EBCMRegenPaddle", 50))
+
     if CP.enableBsm:
       pt_messages.append(("BCMBlindSpotMonitor", 10))
-
-    if CP.transmissionType == TransmissionType.direct:
-      pt_messages += [
-        ("EBCMRegenPaddle", 50),
-        ("EVDriveMode", 0),
-      ]
-
-    if CP.enableGasInterceptorDEPRECATED:
-      pt_messages += [
-        ("GAS_SENSOR", 50),
-      ]
 
     cam_messages = []
     if CP.networkLocation == NetworkLocation.fwdCamera:
@@ -244,17 +221,15 @@ class CarState(CarStateBase):
         ("ASCMLKASteeringCmd", 10),
       ]
 
-      if CP.carFingerprint in ALT_ACCS | CC_ONLY_CAR:
+      if CP.carFingerprint in ALT_ACCS:
         pt_messages.append(("ECMCruiseControl", 10))
-      elif CP.carFingerprint not in CC_ONLY_CAR:
+      else:
         cam_messages.append(("ASCMActiveCruiseControlStatus", 25))
 
       if CP.carFingerprint not in SDGM_CAR:
         cam_messages += [
           ("AEBCmd", 10),
         ]
-    elif CP.carFingerprint in CC_ONLY_CAR:
-      pt_messages.append(("ECMCruiseControl", 10))
 
     loopback_messages = [
       ("ASCMLKASteeringCmd", 0),

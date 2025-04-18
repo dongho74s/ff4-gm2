@@ -40,18 +40,12 @@ class CarControllerParams:
     self.ZERO_GAS = 2048  # Coasting
     self.MAX_BRAKE = 400  # ~ -4.0 m/s^2 with regen
 
-    if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR) and CP.carFingerprint not in CC_ONLY_CAR:
+    if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR):
       self.MAX_GAS = 3400
       self.MAX_ACC_REGEN = 1514
       self.INACTIVE_REGEN = 1554
       # Camera ACC vehicles have no regen while enabled.
       # Camera transitions to MAX_ACC_REGEN from ZERO_GAS and uses friction brakes instantly
-      max_regen_acceleration = 0.
-
-    elif CP.carFingerprint in SDGM_CAR:
-      self.MAX_GAS = 3400
-      self.MAX_ACC_REGEN = 1514
-      self.INACTIVE_REGEN = 1554
       max_regen_acceleration = 0.
 
     else:
@@ -84,10 +78,6 @@ class GMSafetyFlags(IntFlag):
   HW_CAM = 1
   HW_CAM_LONG = 2
   EV = 4
-  NO_ACC = 8
-  GAS_INTERCEPTOR = 16
-  PEDAL_LONG = 32
-  CC_LONG = 64
 
 
 @dataclass
@@ -303,10 +293,6 @@ class CanBus:
   CHASSIS = 2
   LOOPBACK = 128
   DROPPED = 192
-
-class GMFlags(IntFlag):
-  PEDAL_LONG = 1
-  CC_LONG = 2
 
 
 # In a Data Module, an identifier is a string used to recognize an object,

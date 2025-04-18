@@ -10,7 +10,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.gm.carcontroller import CarController
 from opendbc.car.gm.carstate import CarState
 from opendbc.car.gm.radar_interface import RadarInterface, RADAR_HEADER_MSG
-from opendbc.car.gm.values import CAR, CarControllerParams, EV_CAR, CAMERA_ACC_CAR, CanBus, GMFlags, CC_ONLY_CAR, SDGM_CAR, CruiseButtons, GMSafetyFlags, ALT_ACCS
+from opendbc.car.gm.values import CAR, CarControllerParams, EV_CAR, CAMERA_ACC_CAR, CanBus, CC_ONLY_CAR, SDGM_CAR, CruiseButtons, GMSafetyFlags, ALT_ACCS
 from opendbc.car.interfaces import CarInterfaceBase, TorqueFromLateralAccelCallbackType, FRICTION_THRESHOLD, LatControlInputs, NanoFFModel
 
 TransmissionType = structs.CarParams.TransmissionType
@@ -26,9 +26,6 @@ NON_LINEAR_TORQUE_PARAMS = {
 
 NEURAL_PARAMS_PATH = os.path.join(BASEDIR, 'torque_data/neural_ff_weights.json')
 
-PEDAL_MSG = 0x201
-CAM_MSG = 0x320  # AEBCmd
-                 # TODO: Is this always linked to camera presence?
 
 class CarInterface(CarInterfaceBase):
   CarState = CarState
@@ -100,12 +97,7 @@ class CarInterface(CarInterfaceBase):
     ret.autoResumeSng = False
     ret.enableBsm = 0x142 in fingerprint[CanBus.POWERTRAIN] or 0x142 in fingerprint[CanBus.CAMERA]
     ret.startAccel = 1.0
-
     useEVTables = Params().get_bool("EVTable")
-
-    if PEDAL_MSG in fingerprint[0]:
-      ret.enableGasInterceptorDEPRECATED = True
-      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.GAS_INTERCEPTOR.value
 
     if candidate in EV_CAR:
       ret.transmissionType = TransmissionType.direct
@@ -117,7 +109,7 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalTuning.kiBP = [0.]
 
     if candidate in (CAMERA_ACC_CAR | SDGM_CAR):
-      ret.experimentalLongitudinalAvailable = candidate not in (CC_ONLY_CAR | SDGM_CAR)
+      ret.experimentalLongitudinalAvailable = candidate not in SDGM_CAR
       ret.networkLocation = NetworkLocation.fwdCamera
       ret.radarUnavailable = True  # no radar
       ret.pcmCruise = True
@@ -237,10 +229,6 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.2
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-      if ret.enableGasInterceptorDEPRECATED:
-        # ACC Bolts use pedal for full longitudinal control, not just sng
-        ret.flags |= GMFlags.PEDAL_LONG.value
-
     elif candidate == CAR.CHEVROLET_SILVERADO:
       # On the Bolt, the ECM and camera independently check that you are either above 5 kph or at a stop
       # with foot on brake to allow engagement, but this platform only has that check in the camera.
@@ -306,47 +294,6 @@ class CarInterface(CarInterfaceBase):
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
       ret.dashcamOnly = True  # Needs steerRatio, tireStiffness, and lat accel factor tuning
 
-    if ret.enableGasInterceptorDEPRECATED:
-      ret.networkLocation = NetworkLocation.fwdCamera
-      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.HW_CAM.value
-      ret.minEnableSpeed = -1
-      ret.pcmCruise = False
-      ret.openpilotLongitudinalControl = True
-      ret.autoResumeSng = True
 
-      if candidate in CC_ONLY_CAR:
-        ret.flags |= GMFlags.PEDAL_LONG.value
-        ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.PEDAL_LONG.value
-        # Note: Low speed, stop and go not tested. Should be fairly smooth on highway
-        ret.longitudinalTuning.kpBP = [0., 3., 6., 35.]
-        ret.longitudinalTuning.kpV = [0.08, 0.175, 0.225, 0.33]
-        ret.longitudinalTuning.kiBP = [0., 35.0]
-        ret.longitudinalTuning.kiV = [0.07, 0.07]
-        ret.longitudinalTuning.kf = 0.25
-        ret.stoppingDecelRate = 0.8
-      else:  # Pedal used for SNG, ACC for longitudinal control otherwise
-        ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.HW_CAM_LONG.value
-        ret.startingState = True
-        ret.vEgoStopping = 0.25
-        ret.vEgoStarting = 0.25
-
-    elif candidate in CC_ONLY_CAR:
-      ret.flags |= GMFlags.CC_LONG.value
-      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.CC_LONG.value
-      if experimental_long:
-        ret.openpilotLongitudinalControl = True
-        ret.flags |= GMFlags.CC_LONG.value
-      ret.radarUnavailable = True
-      ret.experimentalLongitudinalAvailable = True
-      ret.minEnableSpeed = 24 * CV.MPH_TO_MS
-      ret.pcmCruise = True
-
-      ret.stoppingDecelRate = 11.18  # == 25 mph/s (.04 rate)
-
-      ret.longitudinalTuning.kiBP = [10.7, 10.8, 28.]
-      ret.longitudinalTuning.kiV = [0., 20., 20.]  # set lower end to 0 since we can't drive below that speed
-
-    if candidate in CC_ONLY_CAR:
-      ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.NO_ACC.value
 
     return ret

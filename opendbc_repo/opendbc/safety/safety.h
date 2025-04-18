@@ -71,8 +71,6 @@ const int MAX_WRONG_COUNTERS = 5;
 // This can be set by the safety hooks
 bool controls_allowed = false;
 bool relay_malfunction = false;
-bool enable_gas_interceptor = false;
-int gas_interceptor_prev = 0;
 bool gas_pressed = false;
 bool gas_pressed_prev = false;
 bool brake_pressed = false;
@@ -84,7 +82,6 @@ struct sample_t vehicle_speed;
 bool vehicle_moving = false;
 bool acc_main_on = false;  // referred to as "ACC off" in ISO 15622:2018
 int cruise_button_prev = 0;
-int cruise_main_prev = 0;
 bool safety_rx_checks_invalid = false;
 
 // for safety modes with torque steering control
@@ -359,7 +356,7 @@ static void relay_malfunction_set(void) {
   fault_occurred(FAULT_RELAY_MALFUNCTION);
 }
 
-void generic_rx_checks(bool stock_ecu_detected) {
+static void generic_rx_checks(bool stock_ecu_detected) {
   // allow 1s of transition timeout after relay changes state before assessing malfunctioning
   const uint32_t RELAY_TRNS_TIMEOUT = 1U;
 
@@ -433,8 +430,6 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
   // reset state set by safety mode
   safety_mode_cnt = 0U;
   relay_malfunction = false;
-  enable_gas_interceptor = false;
-  gas_interceptor_prev = 0;
   gas_pressed = false;
   gas_pressed_prev = false;
   brake_pressed = false;
@@ -645,10 +640,6 @@ bool longitudinal_brake_checks(int desired_brake, const LongitudinalLimits limit
   violation |= !get_longitudinal_allowed() && (desired_brake != 0);
   violation |= desired_brake > limits.max_brake;
   return violation;
-}
-
-bool longitudinal_interceptor_checks(const CANPacket_t *to_send) {
-  return (!get_longitudinal_allowed() || brake_pressed_prev) && (GET_BYTE(to_send, 0) || GET_BYTE(to_send, 1));
 }
 
 // Safety checks for torque-based steering commands
