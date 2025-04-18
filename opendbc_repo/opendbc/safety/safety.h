@@ -359,7 +359,7 @@ static void relay_malfunction_set(void) {
   fault_occurred(FAULT_RELAY_MALFUNCTION);
 }
 
-static void generic_rx_checks(bool stock_ecu_detected) {
+void generic_rx_checks(bool stock_ecu_detected) {
   // allow 1s of transition timeout after relay changes state before assessing malfunctioning
   const uint32_t RELAY_TRNS_TIMEOUT = 1U;
 
