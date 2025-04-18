@@ -20,8 +20,6 @@ class CarControllerParams:
   STEER_DRIVER_MULTIPLIER = 4
   STEER_DRIVER_FACTOR = 100
   NEAR_STOP_BRAKE_PHASE = 0.1 #0.5  # m/s
-  SNG_INTERCEPTOR_GAS = 18. / 255.
-  SNG_TIME = 30  # frames until the above is reached
 
   # Heartbeat for dash "Service Adaptive Cruise" and "Service Front Camera"
   ADAS_KEEPALIVE_STEP = 100
@@ -134,7 +132,7 @@ class CAR(Platforms):
     [GMCarDocs("Holden Astra 2017")],
     GMCarSpecs(mass=1363, wheelbase=2.662, steerRatio=15.7, centerToFrontRatio=0.4),
   )
-  CHEVROLET_VOLT = GMASCMPlatformConfig(
+  CHEVROLET_VOLT = GMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ")],
     GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469),
   )

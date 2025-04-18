@@ -10,7 +10,6 @@ from opendbc.car.gm.values import DBC, CanBus, CarControllerParams, CruiseButton
 from opendbc.car.interfaces import CarControllerBase
 from openpilot.selfdrive.controls.lib.drive_helpers import apply_deadzone
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
-from openpilot.selfdrive.car.cruise import VCruiseCarrot
 
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
 NetworkLocation = structs.CarParams.NetworkLocation
@@ -33,18 +32,14 @@ class CarController(CarControllerBase):
     self.apply_torque_last = 0
     self.apply_gas = 0
     self.apply_brake = 0
-    self.apply_speed = 0 # kans: button spam
-    self.frame = 0
     self.last_steer_frame = 0
     self.last_button_frame = 0
     self.cancel_counter = 0
-    self.pedal_steady = 0.
 
     self.lka_steering_cmd_counter = 0
     self.lka_icon_status_last = (False, False)
 
     self.params = CarControllerParams(self.CP)
-    self.params_ = Params() # kans: button spam
 
     self.packer_pt = CANPacker(DBC[self.CP.carFingerprint][Bus.pt])
     self.packer_obj = CANPacker(DBC[self.CP.carFingerprint][Bus.radar])
@@ -57,27 +52,6 @@ class CarController(CarControllerBase):
     self.accel_g = 0.0
     # GM: AutoResume
     self.activateCruise_after_brake = False
-    self.v_cruise_carrot = VCruiseCarrot(self.CP)
-
-  @staticmethod
-  def calc_pedal_command(accel: float, long_active: bool, car_velocity) -> tuple[float, bool]:
-    if not long_active: return 0., False
-    press_regen_paddle = False
-
-    if accel < -0.3: #-0.15:
-      press_regen_paddle = True
-      pedal_gas = 0
-    else:
-      # pedaloffset = 0.24
-      pedaloffset = np.interp(car_velocity, [0., 3, 6, 30], [0.08, 0.175, 0.240, 0.240])
-      pedal_gas = np.clip((pedaloffset + accel * 0.6), 0.0, 1.0)
-
-      ####for safety.
-      pedal_gas_max = np.interp(car_velocity, [0.0, 5, 30], [0.21, 0.3175, 0.3525])
-      pedal_gas = np.clip(pedal_gas, 0.0, pedal_gas_max)
-      ####for safety. end.
-
-    return pedal_gas, press_regen_paddle
 
   def update(self, CC, CS, now_nanos):
 
@@ -161,13 +135,6 @@ class CarController(CarControllerBase):
             can_sends.append(gmcan.create_brake_command(self.packer_ch, CanBus.CHASSIS, apply_brake, idx))
             Params().put_bool_nonblocking("ActivateCruiseAfterBrake", True) # cruise.py에 브레이크 ON신호 전달
             self.activateCruise_after_brake = True # 브레이크신호는 한번만 보내고 초기화
-      else:
-        auto_cruise_control = self.v_cruise_carrot.autoCruiseControl
-        if (CS.out.activateCruise or auto_cruise_control > 0) and \
-           not CS.out.cruiseState.enabled:
-          if (self.frame - self.last_button_frame) * DT_CTRL > 0.04:
-            self.last_button_frame = self.frame
-            can_sends.append(gmcan.create_buttons(self.packer_pt, CanBus.POWERTRAIN, (CS.buttons_counter + 1) % 4, CruiseButtons.DECEL_SET))
         
       # Gas/regen, brakes, and UI commands - all at 25Hz
       if self.frame % 4 == 0:
@@ -184,8 +151,7 @@ class CarController(CarControllerBase):
 
         at_full_stop = CC.longActive and CS.out.standstill
         near_stop = CC.longActive and (abs(CS.out.vEgo) < self.params.NEAR_STOP_BRAKE_PHASE)
-        interceptor_gas_cmd = 0
-        press_regen_paddle = False
+
         if not CC.longActive:
           # ASCM sends max regen when not enabled
           self.apply_gas = self.params.INACTIVE_REGEN
@@ -193,7 +159,6 @@ class CarController(CarControllerBase):
         elif near_stop and stopping and not CC.cruiseControl.resume:
           self.apply_gas = self.params.INACTIVE_REGEN
           self.apply_brake = int(min(-100 * self.CP.stopAccel, self.params.MAX_BRAKE))
-          press_regen_paddle = False
         else:
           # Normal operation
           if self.CP.carFingerprint in EV_CAR and self.use_ev_tables:
@@ -288,7 +253,6 @@ class CarController(CarControllerBase):
     new_actuators.torqueOutputCan = self.apply_torque_last
     new_actuators.gas = self.apply_gas
     new_actuators.brake = self.apply_brake
-    new_actuators.speed = self.apply_speed # kans: button spam
 
     self.frame += 1
     return new_actuators, can_sends
