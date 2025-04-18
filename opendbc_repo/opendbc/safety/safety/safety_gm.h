@@ -127,6 +127,14 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       gas_interceptor_prev = gas_interceptor;
 //      gm_pcm_cruise = false;
     }
+
+    bool stock_ecu_detected = (addr == 0x180);  // ASCMLKASteeringCmd
+
+    // Check ASCMGasRegenCmd only if we're blocking it
+    if (!gm_pcm_cruise && !gm_pedal_long && (addr == 0x2CB)) {
+      stock_ecu_detected = true;
+    }
+    generic_rx_checks(stock_ecu_detected);
   }
 }
 
