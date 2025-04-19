@@ -127,9 +127,8 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
 static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
   // lateral limits
   const TorqueSteeringLimits VOLKSWAGEN_MQB_STEERING_LIMITS = {
-    .max_steer = 300,              // 3.0 Nm (EPS side max of 3.0Nm with fault if violated)
+    .max_torque = 300,             // 3.0 Nm (EPS side max of 3.0Nm with fault if violated)
     .max_rt_delta = 75,            // 4 max rate up * 50Hz send rate * 250000 RT interval / 1000000 = 50 ; 50 * 1.5 for safety pad = 75
-    .max_rt_interval = 250000,     // 250ms between real time checks
     .max_rate_up = 4,              // 2.0 Nm/s RoC limit (EPS rack has own soft-limit of 5.0 Nm/s)
     .max_rate_down = 10,           // 5.0 Nm/s RoC limit (EPS rack has own soft-limit of 5.0 Nm/s)
     .driver_torque_allowance = 80,
@@ -201,38 +200,10 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
   return tx;
 }
 
-static bool volkswagen_mqb_fwd_hook(int bus_num, int addr) {
-  bool block_msg = false;
-
-  switch (bus_num) {
-    case 0:
-      if (addr == MSG_LH_EPS_03) {
-        // openpilot needs to replace apparent driver steering input torque to pacify VW Emergency Assist
-        block_msg = true;
-      }
-      break;
-    case 2:
-      if ((addr == MSG_HCA_01) || (addr == MSG_LDW_02)) {
-        // openpilot takes over LKAS steering control and related HUD messages from the camera
-        block_msg = true;
-      } else if (volkswagen_longitudinal && ((addr == MSG_ACC_02) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07))) {
-        // openpilot takes over acceleration/braking control and related HUD messages from the stock ACC radar
-        block_msg = true;
-      } else {
-      }
-      break;
-    default:
-      break;
-  }
-
-  return block_msg;
-}
-
 const safety_hooks volkswagen_mqb_hooks = {
   .init = volkswagen_mqb_init,
   .rx = volkswagen_mqb_rx_hook,
   .tx = volkswagen_mqb_tx_hook,
-  .fwd = volkswagen_mqb_fwd_hook,
   .get_counter = volkswagen_mqb_meb_get_counter,
   .get_checksum = volkswagen_mqb_meb_get_checksum,
   .compute_checksum = volkswagen_mqb_meb_compute_crc,

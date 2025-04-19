@@ -155,12 +155,11 @@ static void toyota_rx_hook(const CANPacket_t *to_push) {
 
 static bool toyota_tx_hook(const CANPacket_t *to_send) {
   const TorqueSteeringLimits TOYOTA_TORQUE_STEERING_LIMITS = {
-    .max_steer = 1500,
+    .max_torque = 1500,
     .max_rate_up = 15,          // ramp up slow
     .max_rate_down = 25,        // ramp down fast
     .max_torque_error = 350,    // max torque cmd in excess of motor torque
     .max_rt_delta = 450,        // the real time limit is 1800/sec, a 20% buffer
-    .max_rt_interval = 250000,
     .type = TorqueMotorLimited,
 
     // the EPS faults when the steering angle rate is above a certain threshold for too long. to prevent this,
@@ -399,27 +398,10 @@ static safety_config toyota_init(uint16_t param) {
   return ret;
 }
 
-static bool toyota_fwd_hook(int bus_num, int addr) {
-  bool block_msg = false;
-  if (bus_num == 2) {
-    // block stock lkas messages and stock acc messages (if OP is doing ACC)
-    // in TSS2, 0x191 is LTA which we need to block to avoid controls collision
-    bool is_lkas_msg = ((addr == 0x2E4) || (addr == 0x412) || (addr == 0x191));
-    // on SecOC cars 0x131 is also LTA
-    is_lkas_msg |= toyota_secoc && (addr == 0x131);
-    // in TSS2 the camera does ACC as well, so filter 0x343
-    bool is_acc_msg = (addr == 0x343);
-    block_msg = is_lkas_msg || (is_acc_msg && !toyota_stock_longitudinal);
-  }
-
-  return block_msg;
-}
-
 const safety_hooks toyota_hooks = {
   .init = toyota_init,
   .rx = toyota_rx_hook,
   .tx = toyota_tx_hook,
-  .fwd = toyota_fwd_hook,
   .get_checksum = toyota_get_checksum,
   .compute_checksum = toyota_compute_checksum,
   .get_quality_flag_valid = toyota_get_quality_flag_valid,

@@ -104,9 +104,8 @@ static void chrysler_rx_hook(const CANPacket_t *to_push) {
 
 static bool chrysler_tx_hook(const CANPacket_t *to_send) {
   const TorqueSteeringLimits CHRYSLER_STEERING_LIMITS = {
-    .max_steer = 261,
+    .max_torque = 261,
     .max_rt_delta = 112,
-    .max_rt_interval = 250000,
     .max_rate_up = 3,
     .max_rate_down = 3,
     .max_torque_error = 80,
@@ -114,9 +113,8 @@ static bool chrysler_tx_hook(const CANPacket_t *to_send) {
   };
 
   const TorqueSteeringLimits CHRYSLER_RAM_DT_STEERING_LIMITS = {
-    .max_steer = 350,
+    .max_torque = 350,
     .max_rt_delta = 112,
-    .max_rt_interval = 250000,
     .max_rate_up = 6,
     .max_rate_down = 6,
     .max_torque_error = 80,
@@ -124,9 +122,8 @@ static bool chrysler_tx_hook(const CANPacket_t *to_send) {
   };
 
   const TorqueSteeringLimits CHRYSLER_RAM_HD_STEERING_LIMITS = {
-    .max_steer = 361,
+    .max_torque = 361,
     .max_rt_delta = 182,
-    .max_rt_interval = 250000,
     .max_rate_up = 14,
     .max_rate_down = 14,
     .max_torque_error = 80,
@@ -162,18 +159,6 @@ static bool chrysler_tx_hook(const CANPacket_t *to_send) {
   }
 
   return tx;
-}
-
-static bool chrysler_fwd_hook(int bus_num, int addr) {
-  bool block_msg = false;
-
-  // forward all messages from camera except LKAS messages
-  const bool is_lkas = ((addr == chrysler_addrs->LKAS_COMMAND) || (addr == chrysler_addrs->DAS_6));
-  if ((bus_num == 2) && is_lkas){
-    block_msg = true;
-  }
-
-  return block_msg;
 }
 
 static safety_config chrysler_init(uint16_t param) {

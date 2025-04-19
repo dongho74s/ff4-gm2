@@ -139,9 +139,8 @@ static void hyundai_canfd_rx_hook(const CANPacket_t *to_push) {
 
 static bool hyundai_canfd_tx_hook(const CANPacket_t *to_send) {
   const TorqueSteeringLimits HYUNDAI_CANFD_STEERING_LIMITS = {
-    .max_steer = 270,
+    .max_torque = 270,
     .max_rt_delta = 112,
-    .max_rt_interval = 250000,
     .max_rate_up = 2,
     .max_rate_down = 3,
     .driver_torque_allowance = 250,
@@ -217,27 +216,6 @@ static bool hyundai_canfd_tx_hook(const CANPacket_t *to_send) {
   }
 
   return tx;
-}
-
-static bool hyundai_canfd_fwd_hook(int bus_num, int addr) {
-  bool block_msg = false;
-
-  if (bus_num == 2) {
-    // LKAS for cars with LKAS and LFA messages, LFA for cars with no LKAS messages
-    int lfa_block_addr = hyundai_canfd_lka_steering_alt ? 0x362 : 0x2a4;
-    bool is_lka_msg = ((addr == hyundai_canfd_get_lka_addr()) || (addr == lfa_block_addr)) && hyundai_canfd_lka_steering;
-    bool is_lfa_msg = ((addr == 0x12a) && !hyundai_canfd_lka_steering);
-
-    // HUD icons
-    bool is_lfahda_msg = ((addr == 0x1e0) && !hyundai_canfd_lka_steering);
-
-    // SCC_CONTROL and ADRV_0x160 for camera SCC cars, we send our own longitudinal commands and to show FCA light
-    bool is_scc_msg = (((addr == 0x1a0) || (addr == 0x160)) && hyundai_longitudinal && !hyundai_canfd_lka_steering);
-
-    block_msg = is_lka_msg || is_lfa_msg || is_lfahda_msg || is_scc_msg;
-  }
-
-  return block_msg;
 }
 
 static safety_config hyundai_canfd_init(uint16_t param) {
@@ -399,7 +377,6 @@ const safety_hooks hyundai_canfd_hooks = {
   .init = hyundai_canfd_init,
   .rx = hyundai_canfd_rx_hook,
   .tx = hyundai_canfd_tx_hook,
-  .fwd = hyundai_canfd_fwd_hook,
   .get_counter = hyundai_canfd_get_counter,
   .get_checksum = hyundai_canfd_get_checksum,
   .compute_checksum = hyundai_common_canfd_compute_checksum,
