@@ -2,7 +2,7 @@ from cereal import log
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.realtime import DT_MDL
 import numpy as np
-
+from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.common.params import Params
 
 LaneChangeState = log.LaneChangeState
@@ -58,14 +58,14 @@ def calculate_lane_width_frog(lane, current_lane, road_edge):
 
 def calculate_lane_width(lane, lane_prob, current_lane, road_edge):
   t = 1.0 # 약 1초 앞의 차선.
-  current_lane_y = np.interp(t, current_lane.t, current_lane.y)
-  lane_y = np.interp(t, lane.t, lane.y)
+  current_lane_y = np.interp(t, ModelConstants.T_IDXS, current_lane.y)
+  lane_y = np.interp(t, ModelConstants.T_IDXS, lane.y)
   distance_to_lane = abs(current_lane_y - lane_y)
   #if lane_prob < 0.3:# 차선이 없으면 없는것으로 간주시킴.
   #  distance_to_lane = min(2.0, distance_to_lane)
-  road_edge_y = np.interp(t, road_edge.t, road_edge.y)
+  road_edge_y = np.interp(t, ModelConstants.T_IDXS, road_edge.y)
   distance_to_road_edge = abs(current_lane_y - road_edge_y)
-  distance_to_road_edge_far = abs(current_lane_y - np.interp(2.0, road_edge.t, road_edge.y))
+  distance_to_road_edge_far = abs(current_lane_y - np.interp(2.0, ModelConstants.T_IDXS, road_edge.y))
   return min(distance_to_lane, distance_to_road_edge), distance_to_road_edge, distance_to_road_edge_far, lane_prob > 0.5
 
 class ExistCounter:
@@ -136,6 +136,7 @@ class DesireHelper:
 
     self.turn_desire_state = False
     self.desire_disable_count = 0
+    self.blindspot_detected_counter = 0
 
   def check_lane_state(self, modeldata):
     self.lane_width_left, self.distance_to_road_edge_left, self.distance_to_road_edge_left_far, lane_prob_left = calculate_lane_width(modeldata.laneLines[0], modeldata.laneLineProbs[0],
@@ -180,6 +181,8 @@ class DesireHelper:
     driver_desire_enabled = driver_blinker_state in [BLINKER_LEFT, BLINKER_RIGHT]
     if self.laneChangeNeedTorque == 2:
       driver_desire_enabled = False
+
+    self.blindspot_detected_counter = max(0, self.blindspot_detected_counter - 1)
 
     ##### check ATC's blinker state
     atc_type = carrotMan.atcType
@@ -286,17 +289,23 @@ class DesireHelper:
         self.lane_change_direction = LaneChangeDirection.left if \
           blinker_state == BLINKER_LEFT else LaneChangeDirection.right
 
-        torque_applied = carstate.steeringPressed and \
-                         ((carstate.steeringTorque > 0 and self.lane_change_direction == LaneChangeDirection.left) or
-                          (carstate.steeringTorque < 0 and self.lane_change_direction == LaneChangeDirection.right))
+        dir_map = {
+            LaneChangeDirection.left:  (carstate.steeringTorque > 0, carstate.leftBlindspot),
+            LaneChangeDirection.right: (carstate.steeringTorque < 0, carstate.rightBlindspot),
+        }
+        torque_cond, blindspot_cond = dir_map.get(self.lane_change_direction, (False, False))
+        torque_applied = carstate.steeringPressed and torque_cond
+        blindspot_detected = blindspot_cond
 
-        blindspot_detected = ((carstate.leftBlindspot and self.lane_change_direction == LaneChangeDirection.left) or
-                              (carstate.rightBlindspot and self.lane_change_direction == LaneChangeDirection.right))
-
+        if blindspot_detected:
+          self.blindspot_detected_counter = int(0.5 / DT_MDL)
+          # BSD검출시.. 아래 두줄로 자동차선변경 해제함.. 위험해서 자동차선변경기능은 안하는걸로...
+          self.lane_change_state = LaneChangeState.off
+          self.lane_change_direction = LaneChangeDirection.none
         if not desire_enabled or below_lane_change_speed:
           self.lane_change_state = LaneChangeState.off
           self.lane_change_direction = LaneChangeDirection.none
-        elif not blindspot_detected:
+        elif self.blindspot_detected_counter == 0:
           if self.laneChangeNeedTorque > 0:
             if torque_applied and lane_available:
               self.lane_change_state = LaneChangeState.laneChangeStarting

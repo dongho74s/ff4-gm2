@@ -6,6 +6,7 @@ import time
 import tomllib
 import math
 from abc import abstractmethod, ABC
+from difflib import SequenceMatcher
 from enum import StrEnum
 from typing import Any, NamedTuple
 from collections.abc import Callable
@@ -87,6 +88,53 @@ def get_torque_params():
       torque_params[candidate] = torque_params[sub_candidate]
 
   return torque_params
+
+class MyTrack:
+  def __init__(self, track_id: int, radar_point, dt: float):
+    self.track_id = track_id
+    self.cnt = 0
+    self.dRel = radar_point.dRel
+    self.vRel = radar_point.vRel
+    self.yRel = radar_point.yRel
+    self.vLead = radar_point.vLead
+    self.vLead_averaged = self.vLead
+    self.aLead = 0.0
+    self.jLead = 0.0
+    self.dt = dt
+    self.vLead_avg = FirstOrderFilter(self.vLead, 0.1, self.dt)
+    self.aLead_avg = FirstOrderFilter(self.aLead, 0.15, self.dt)
+    self.jLead_avg = FirstOrderFilter(self.jLead, 0.4, self.dt)
+        
+  def update(self, radar_point):
+    self.vLead = radar_point.vLead
+    """
+    if abs(radar_point.dRel - self.dRel) > 3.0 or abs(self.vRel - radar_point.vRel) > 20.0 * self.dt:
+      self.cnt = 0
+      self.jLead = 0.0
+      self.aLead = 0.0
+      self.vLead_avg.x = self.vLead
+      self.aLead_avg.x = self.aLead
+      self.jLead_avg.x = self.jLead
+      self.vLead_averaged = self.vLead
+    """
+
+    self.yRel = radar_point.yRel
+
+    v_lead = self.vLead_avg.update(self.vLead)
+
+    a_raw = (v_lead - self.vLead_averaged) / self.dt
+    self.vLead_averaged = v_lead
+    a_lead = self.aLead_avg.update(a_raw)
+
+    j_lead = (a_lead - self.aLead) / self.dt
+    self.aLead = a_lead
+    self.jLead = self.jLead_avg.update(j_lead)
+
+    # Store latest values
+    self.dRel = radar_point.dRel
+    self.vRel = radar_point.vRel
+
+    self.cnt += 1
 
 # generic car and radar interfaces
 
@@ -197,7 +245,7 @@ class CarInterfaceBase(ABC):
 
   @classmethod
   def get_params(cls, candidate: str, fingerprint: dict[int, dict[int, int]], car_fw: list[structs.CarParams.CarFw],
-                 experimental_long: bool, docs: bool) -> structs.CarParams:
+                 alpha_long: bool, docs: bool) -> structs.CarParams:
     ret = CarInterfaceBase.get_std_params(candidate)
 
     platform = PLATFORMS[candidate]
@@ -210,7 +258,8 @@ class CarInterfaceBase(ABC):
     ret.tireStiffnessFactor = platform.config.specs.tireStiffnessFactor
     ret.flags |= int(platform.config.flags)
 
-    ret = cls._get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs)
+    ret = cls._get_params(ret, candidate, fingerprint, car_fw, alpha_long, docs)
+   
 
     if Params().get_bool("DisableMinSteerSpeed"):
       ret.minSteerSpeed = 0.
@@ -228,7 +277,7 @@ class CarInterfaceBase(ABC):
   @staticmethod
   @abstractmethod
   def _get_params(ret: structs.CarParams, candidate, fingerprint: dict[int, dict[int, int]],
-                  car_fw: list[structs.CarParams.CarFw], experimental_long: bool, docs: bool) -> structs.CarParams:
+                  car_fw: list[structs.CarParams.CarFw], alpha_long: bool, docs: bool) -> structs.CarParams:
     raise NotImplementedError
 
   @staticmethod
@@ -335,52 +384,6 @@ class CarInterfaceBase(ABC):
 
     return ret
 
-class MyTrack:
-  def __init__(self, track_id: int, radar_point, dt: float):
-    self.track_id = track_id
-    self.cnt = 0
-    self.dRel = radar_point.dRel
-    self.vRel = radar_point.vRel
-    self.yRel = radar_point.yRel
-    self.vLead = radar_point.vLead
-    self.vLead_averaged = self.vLead
-    self.aLead = 0.0
-    self.jLead = 0.0
-    self.dt = dt
-    self.vLead_avg = FirstOrderFilter(self.vLead, 0.1, self.dt)
-    self.aLead_avg = FirstOrderFilter(self.aLead, 0.15, self.dt)
-    self.jLead_avg = FirstOrderFilter(self.jLead, 0.4, self.dt)
-        
-  def update(self, radar_point):
-    self.vLead = radar_point.vLead
-    """
-    if abs(radar_point.dRel - self.dRel) > 3.0 or abs(self.vRel - radar_point.vRel) > 20.0 * self.dt:
-      self.cnt = 0
-      self.jLead = 0.0
-      self.aLead = 0.0
-      self.vLead_avg.x = self.vLead
-      self.aLead_avg.x = self.aLead
-      self.jLead_avg.x = self.jLead
-      self.vLead_averaged = self.vLead
-    """
-
-    self.yRel = radar_point.yRel
-
-    v_lead = self.vLead_avg.update(self.vLead)
-
-    a_raw = (v_lead - self.vLead_averaged) / self.dt
-    self.vLead_averaged = v_lead
-    a_lead = self.aLead_avg.update(a_raw)
-
-    j_lead = (a_lead - self.aLead) / self.dt
-    self.aLead = a_lead
-    self.jLead = self.jLead_avg.update(j_lead)
-
-    # Store latest values
-    self.dRel = radar_point.dRel
-    self.vRel = radar_point.vRel
-
-    self.cnt += 1
 
 class CarStateBase(ABC):
   def __init__(self, CP: structs.CarParams):

@@ -305,6 +305,8 @@ struct CarState {
       gapAdjustCruise @11;
 
       lfaButton @12;
+      paddleLeft @13;
+      paddleRight @14;
     }
   }
 
@@ -435,6 +437,9 @@ struct CarControl {
     activeCarrot @11: Int16;
     leadDistance @12: Float32;
     leadRelSpeed @13: Float32;
+    leadDPath @14: Float32;
+    leadRadar @15: Int16;
+    modelDesire @16: Int16;
 
     # not used with the dash, TODO: separate structs for dash UI and device UI
     audibleAlert @5: AudibleAlert;
@@ -525,15 +530,16 @@ struct CarParams {
   enableDsu @5 :Bool;        # driving support unit
   enableBsm @56 :Bool;       # blind spot monitoring
   flags @64 :UInt32;         # flags for car specific quirks
-  extFlags @77 :UInt32;     # carrot ext car flags
-  experimentalLongitudinalAvailable @71 :Bool;
+  alphaLongitudinalAvailable @71 :Bool;
+  extFlags @78 :UInt32;     # carrot ext car flags
 
   minEnableSpeed @7 :Float32;
   minSteerSpeed @8 :Float32;
+  steerAtStandstill @77 :Bool;  # is steering available at standstill? just check if it faults
   safetyConfigs @62 :List(SafetyConfig);
   alternativeExperience @65 :Int16;      # panda flag for features like no disengage on gas
 
-  # Car docs fields
+  # Car docs fields, not used for control
   maxLateralAccel @68 :Float32;
   autoResumeSng @69 :Bool;               # describes whether car can resume from a stop automatically
 

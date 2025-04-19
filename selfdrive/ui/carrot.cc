@@ -356,10 +356,10 @@ protected:
             sprintf(title, "3.Model(Y:pos_32, G:vel_32, O:vel_0)");
 			      break;
         case 4:
-            data[0] = a_ego;
+            data[0] = accel;
             data[1] = lead_radar.getALeadK();
             data[2] = lead_radar.getVRel();
-            sprintf(title, "4.Lead(Y:a_ego, G:a_lead, O:v_rel)");
+            sprintf(title, "4.Lead(Y:accel, G:a_lead, O:v_rel)");
             break;
         case 5:
             data[0] = a_ego;
@@ -2206,11 +2206,13 @@ public:
         if (strcmp(driving_mode_str, driving_mode_str_last)) ui_draw_text_a(s, dx, dy, driving_mode_str, 30, COLOR_WHITE, BOLD);
         strcpy(driving_mode_str_last, driving_mode_str);
 
+        /*
         auto locationd = sm["liveLocationKalman"].getLiveLocationKalman();
         bool is_gps_valid = locationd.getGpsOK();
         if (is_gps_valid) {
           ui_draw_text(s, dx, dy - 45, "GPS", 30, COLOR_GREEN, BOLD);
         }
+        */
 
         char gap_str[32];
         int gap = params.getInt("LongitudinalPersonality") + 1;
@@ -2747,6 +2749,10 @@ public:
         }
         else if (longitudinal_control) {
             carName += " - OP Long";
+        }
+        QString NNFFModelName = QString::fromStdString(params.get("NNFFModelName"));
+        if (NNFFModelName.length() > 0) {
+            carName += ",NNFF";
         }
         sprintf(top_left, "%s", carName.toStdString().c_str());
 

@@ -1,7 +1,13 @@
+from collections import deque
+
 import math
 import numpy as np
 
 from cereal import log
+from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.selfdrive.modeld.constants import ModelConstants
+from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
+
 from opendbc.car.interfaces import LatControlInputs
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
@@ -41,8 +47,6 @@ class LatControlTorque(LatControl):
     self.latAccelFactor_default = self.torque_params.latAccelFactor
     self.latAccelOffset_default = self.torque_params.latAccelOffset
     self.friction_default = self.torque_params.friction
-    self.dampingFactor = 0
-    self.error_last = 0.0
 
 
   def update_live_torque_params(self, latAccelFactor, latAccelOffset, friction):
@@ -53,11 +57,10 @@ class LatControlTorque(LatControl):
     self.torque_params.latAccelOffset = latAccelOffset
     self.torque_params.friction = friction
 
-  def update(self, active, CS, VM, params, steer_limited_by_controls, desired_curvature, llk, curvature_limited):
+  def update(self, active, CS, VM, params, steer_limited_by_controls, desired_curvature, calibrated_pose, curvature_limited):
     self.frame += 1
     if self.frame % 10 == 0:
       lateralTorqueCustom = self.params.get_int("LateralTorqueCustom")
-      self.dampingFactor = self.params.get_float("DampingFactor") * 0.01
       if lateralTorqueCustom > 0:
         self.torque_params.latAccelFactor = self.params.get_float("LateralTorqueAccelFactor")*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001
@@ -77,8 +80,6 @@ class LatControlTorque(LatControl):
       self.lateralTorqueCustom = lateralTorqueCustom
 
     pid_log = log.ControlsState.LateralTorqueState.new_message()
-
-    steeringRate = math.radians(CS.steeringRateDeg)
     if not active:
       output_torque = 0.0
       pid_log.active = False
@@ -93,8 +94,9 @@ class LatControlTorque(LatControl):
         actual_curvature = actual_curvature_vm
         curvature_deadzone = abs(VM.calc_curvature(math.radians(self.steering_angle_deadzone_deg), CS.vEgo, 0.0))
       else:
-        actual_curvature_llk = llk.angularVelocityCalibrated.value[2] / CS.vEgo
-        actual_curvature = np.interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_llk])
+        assert calibrated_pose is not None
+        actual_curvature_pose = calibrated_pose.angular_velocity.yaw / CS.vEgo
+        actual_curvature = np.interp(CS.vEgo, [2.0, 5.0], [actual_curvature_vm, actual_curvature_pose])
         curvature_deadzone = 0.0
       desired_lateral_accel = desired_curvature * CS.vEgo ** 2
 
@@ -118,15 +120,10 @@ class LatControlTorque(LatControl):
 
       freeze_integrator = steer_limited_by_controls or CS.steeringPressed or CS.vEgo < 5
       output_torque = self.pid.update(pid_log.error,
-                                      error_rate=pid_log.error - self.error_last,
                                       feedforward=ff,
                                       speed=CS.vEgo,
                                       freeze_integrator=freeze_integrator)
 
-      damping_torque = - self.dampingFactor * steeringRate
-      output_torque += damping_torque
-
-      self.error_last = pid_log.error
       pid_log.active = True
       pid_log.p = float(self.pid.p)
       pid_log.i = float(self.pid.i)

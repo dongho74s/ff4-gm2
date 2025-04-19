@@ -154,7 +154,7 @@ void TogglesPanel::updateToggles() {
 
       QString long_desc = unavailable + " " + \
                           tr("openpilot longitudinal control may come in a future update.");
-      if (CP.getExperimentalLongitudinalAvailable()) {
+      if (CP.getAlphaLongitudinalAvailable()) {
         if (is_release) {
           long_desc = unavailable + " " + tr("An alpha version of openpilot longitudinal control can be tested, along with Experimental mode, on non-release branches.");
         } else {
@@ -209,51 +209,21 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   //QObject::connect(init_btn, &QPushButton::clicked, this, &DevicePanel::reboot);
   QObject::connect(init_btn, &QPushButton::clicked, [&]() {
     if (ConfirmationDialog::confirm(tr("Git pull & Reboot?"), tr("Yes"), this)) {
+      QString cmd =
+        "bash -c 'cd /data/openpilot && "
+        "git fetch && "
+        "if git status -uno | grep -q \"Your branch is behind\"; then "
+        "git pull && reboot; "
+        "else "
+        "echo \"Already up to date.\"; "
+        "fi'";
 
-      QProcess process;
-      process.start("git", QStringList() << "fetch");
-      if (!process.waitForFinished()) {
-        ConfirmationDialog::alert(tr("Git fetch process timed out."), this);
-        return;
+      if (!QProcess::startDetached(cmd)) {
+        ConfirmationDialog::alert(tr("Failed to start update process."), this);
       }
-      if (process.exitStatus() != QProcess::NormalExit) {
-        ConfirmationDialog::alert(tr("Git fetch process crashed."), this);
-        return;
+      else {
+        ConfirmationDialog::alert(tr("Update process started. Device will reboot if updates are applied."), this);
       }
-      if (process.exitCode() != 0) {
-        ConfirmationDialog::alert(tr("Failed to fetch updates."), this);
-        return;
-      }
-
-      // Git status to check if there are new updates
-      process.start("git", QStringList() << "status" << "-uno");
-      process.waitForFinished();
-
-      QString output = process.readAllStandardOutput();
-      if (output.isEmpty()) {
-        ConfirmationDialog::alert(tr("Failed to read Git status."), this);
-        return;
-      }
-      if (!output.contains("Your branch is behind")) {
-        ConfirmationDialog::alert(tr("Already up to date."), this);
-        return;
-      }
-
-      // Git pull to apply updates
-      process.start("git", QStringList() << "pull");
-      process.waitForFinished();
-
-      if (process.exitCode() != 0) {
-        ConfirmationDialog::alert(tr("Git pull failed. Please check the logs."), this);
-        return;
-      }
-
-      ConfirmationDialog::alert(tr("Git pull successful. Rebooting..."), this);
-
-      //emit parent->closeSettings();
-      //DevicePanel::reboot();
-      params.putBool("DoReboot", true);
-
     }
     });
 
@@ -309,6 +279,10 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   });
   addItem(retrainingBtn);
 
+  auto statusCalibBtn = new ButtonControl(tr("Calibration Status"), tr("SHOW"), "");
+  connect(statusCalibBtn, &ButtonControl::showDescriptionEvent, this, &DevicePanel::updateCalibDescription);
+  addItem(statusCalibBtn);
+  
   if (Hardware::TICI()) {
     auto regulatoryBtn = new ButtonControl(tr("Regulatory"), tr("VIEW"), "");
     connect(regulatoryBtn, &ButtonControl::clicked, [=]() {
@@ -341,6 +315,7 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
       }
     }
     translateBtn->setEnabled(true);
+    statusCalibBtn->setEnabled(true);
   });
 
 }
@@ -792,7 +767,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
 
   startToggles->addItem(selectCarBtn);
   startToggles->addItem(new ParamControl("HyundaiCameraSCC", "HYUNDAI: CAMERA SCC", "Connect the SCC's CAN line to CAM", "../assets/offroad/icon_shell.png", this));
-  startToggles->addItem(new ParamControl("EnableRadarTracks", "Enable RadarTrack", "", "../assets/offroad/icon_shell.png", this));
+  startToggles->addItem(new CValueControl("EnableRadarTracks", "Enable Radar Track", "1:Enable RadarTrack, -1,2:Disable use HKG SCC radar at all times", "../assets/offroad/icon_shell.png", -1, 2, 1));
   startToggles->addItem(new CValueControl("CanfdHDA2", "CANFD: HDA2 mode", "1:HDA2,2:HDA2+BSM", "../assets/offroad/icon_shell.png", 0, 2, 1));
   startToggles->addItem(new CValueControl("AutoCruiseControl", "Auto Cruise control", "Softhold, Auto Cruise ON/OFF control", "../assets/offroad/icon_road.png", 0, 3, 1));
   startToggles->addItem(new CValueControl("CruiseOnDist", "CRUISE: Auto ON distance(0cm)", "When GAS/Brake is OFF, Cruise ON when the lead car gets closer.", "../assets/offroad/icon_road.png", 0, 2500, 50));
@@ -813,13 +788,15 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   //startToggles->addItem(new ParamControl("NoLogging", "Disable Logger", "", "../assets/offroad/icon_shell.png", this));
   //startToggles->addItem(new ParamControl("LaneChangeNeedTorque", "LaneChange: Need Torque", "", "../assets/offroad/icon_shell.png", this));
   //startToggles->addItem(new CValueControl("LaneChangeLaneCheck", "LaneChange: Check lane exist", "(0:No,1:Lane,2:+Edge)", "../assets/offroad/icon_shell.png", 0, 2, 1));
+  startToggles->addItem(new CValueControl("NNFF", "NNFF", "Twilsonco's NNFF(Reboot required)", "../assets/offroad/icon_road.png", 0, 1, 1));
+  startToggles->addItem(new CValueControl("NNFFLite", "NNFFLite", "Twilsonco's NNFF-Lite(Reboot required)", "../assets/offroad/icon_road.png", 0, 1, 1));
 
   speedToggles = new ListWidget(this);
   speedToggles->addItem(new CValueControl("AutoCurveSpeedLowerLimit", "CURVE: Lower limit speed(30)", "곡선도로를 만나면 속도를 줄여줍니다. 최저속도", "../assets/offroad/icon_road.png", 30, 200, 5));
   speedToggles->addItem(new CValueControl("AutoCurveSpeedFactor", "CURVE: Auto Control ratio(100%)", "", "../assets/offroad/icon_road.png", 50, 300, 1));
   speedToggles->addItem(new CValueControl("AutoCurveSpeedAggressiveness", "CURVE: Aggressiveness (100%)", "", "../assets/offroad/icon_road.png", 50, 300, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlEnd", "SpeedCameraDecelEnd(6s)", "감속완료시점을 설정합니다.값이 크면 카메라에서 멀리 감속 완료", "../assets/offroad/icon_road.png", 3, 20, 1));
-  speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", "0:감속안함,1:과속카메라,2:+사고방지턱,3:+이동식카메라", "../assets/offroad/icon_road.png", 0, 3, 1));
+  speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", "NaviSpeedControlMode(2)", "0:감속안함,1:과속카메라,2:+사고방지턱,3:+이동식카메라", "../assets/offroad/icon_road.png", 0, 3, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedDecelRate", "SpeedCameraDecelRatex0.01m/s^2(80)", "낮으면 멀리서부터 감속함", "../assets/offroad/icon_road.png", 10, 200, 10));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedSafetyFactor", "SpeedCameraSafetyFactor(105%)", "", "../assets/offroad/icon_road.png", 80, 120, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpTime", "SpeedBumpTimeDistance(1s)", "", "../assets/offroad/icon_road.png", 1, 50, 1));

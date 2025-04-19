@@ -32,13 +32,13 @@ COST_E_DIM = 5
 COST_DIM = COST_E_DIM + 1
 CONSTR_DIM = 4
 
-X_EGO_OBSTACLE_COST = 6. #3.
+X_EGO_OBSTACLE_COST = 3.
 X_EGO_COST = 0.
 V_EGO_COST = 0.
 A_EGO_COST = 0.
 J_EGO_COST = 5.0
 A_CHANGE_COST = 250.
-A_CHANGE_COST_STARTING = 100.
+A_CHANGE_COST_STARTING = 30.
 DANGER_ZONE_COST = 100.
 CRASH_DISTANCE = .25
 LEAD_DANGER_FACTOR = 0.8 #0.75
@@ -311,7 +311,7 @@ class LongitudinalMpc:
         self.solver.set(i, 'x', self.x0)
 
   @staticmethod
-  def extrapolate_lead_old(x_lead, v_lead, a_lead, a_lead_tau):
+  def extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau):
     a_lead_traj = a_lead * np.exp(-a_lead_tau * (T_IDXS**2)/2.)
     v_lead_traj = np.clip(v_lead + np.cumsum(T_DIFFS * a_lead_traj), 0.0, 1e8)
     x_lead_traj = x_lead + np.cumsum(T_DIFFS * v_lead_traj)
@@ -319,11 +319,11 @@ class LongitudinalMpc:
     return lead_xv
   
   @staticmethod
-  def extrapolate_lead(x_lead, v_lead, a_lead, j_lead, a_lead_tau):
+  def extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau):
     a_lead_traj = np.zeros_like(T_IDXS)
     a_lead_traj[0] = a_lead 
 
-    
+    """
     for i in range(1, len(T_IDXS)):
         dt = T_IDXS[i] - T_IDXS[i - 1]
         a_lead_traj[i] = (
@@ -340,7 +340,6 @@ class LongitudinalMpc:
           a_lead_traj[i - 1] * np.exp(-a_lead_tau * dt) 
           + j_lead_decayed * dt  
       )
-    """
 
     v_lead_traj = np.clip(v_lead + np.cumsum(T_DIFFS * a_lead_traj), 0.0, 1e8)
     x_lead_traj = x_lead + np.cumsum(T_DIFFS * v_lead_traj)
@@ -370,7 +369,18 @@ class LongitudinalMpc:
     v_lead = np.clip(v_lead, 0.0, 1e8)
     a_lead = np.clip(a_lead, -10., 5.)
     j_lead = np.clip(j_lead, -2., 2.)
-    lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, j_lead * carrot.j_lead_factor, a_lead_tau)
+
+    j_lead *=  carrot.j_lead_factor
+    #if j_lead > 0 and a_lead < 0 and (v_lead - v_ego) > 0 and x_lead > self.desired_distance:
+    if j_lead > 0 and a_lead < 0 and x_lead > self.desired_distance:
+      a_lead += min(j_lead, 0.5)
+      a_lead = min(a_lead, 0.0)
+
+    if j_lead < 0 and a_lead < -0.5:
+      a_lead -= min(abs(j_lead)*1.5, 0.8)
+    
+    lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau)
+    #lead_xv = self.extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau)
     return lead_xv, v_lead
 
   def set_accel_limits(self, min_a, max_a):
@@ -436,8 +446,7 @@ class LongitudinalMpc:
       x[:], v[:], a[:], j[:] = 0.0, 0.0, 0.0, 0.0
 
       safe_distance = lead_0_obstacle[0] - get_safe_obstacle_distance(v_ego, comfort_brake, stop_distance)
-      lead_danger_factor = np.interp(safe_distance, [-30.0, 0.0], [1.0, LEAD_DANGER_FACTOR])
-      self.lead_danger_factor = self.lead_danger_factor * 0.9 + lead_danger_factor * 0.1
+      self.lead_danger_factor = np.interp(safe_distance, [-30.0, 0.0], [0.9, LEAD_DANGER_FACTOR])
       self.params[:,5] = self.lead_danger_factor
       
     elif mode == 'blended':

@@ -16,6 +16,7 @@ MAX_VEL_ERR = 5.0  # m/s
 # EU guidelines
 MAX_LATERAL_JERK = 5.0  # m/s^3
 MAX_LATERAL_ACCEL_NO_ROLL = 3.0  # m/s^2
+MAX_CURVATURE_DELTA_FRAME = 0.03 #0.019 # about 3 degree / DT_CTRL 
 
 def apply_deadzone(error, deadzone):
   if error > deadzone:
@@ -69,8 +70,16 @@ def clip_curvature(v_ego, prev_curvature, new_curvature, roll):
   new_curvature, limited_accel = clamp(new_curvature, min_lat_accel / v_ego ** 2, max_lat_accel / v_ego ** 2)
 
   new_curvature, limited_max_curv = clamp(new_curvature, -MAX_CURVATURE, MAX_CURVATURE)
-  return float(new_curvature), limited_accel or limited_max_curv
+  
+  new_curvature = np.clip(
+    new_curvature,
+    prev_curvature - MAX_CURVATURE_DELTA_FRAME,
+    prev_curvature + MAX_CURVATURE_DELTA_FRAME
+  )
+  
+  was_limited = limited_accel or limited_max_curv or (abs(new_curvature - prev_curvature) >= MAX_CURVATURE_DELTA_FRAME)
 
+  return float(new_curvature), was_limited
 
 def get_speed_error(modelV2: log.ModelDataV2, v_ego: float) -> float:
   # ToDo: Try relative error, and absolute speed
@@ -78,3 +87,26 @@ def get_speed_error(modelV2: log.ModelDataV2, v_ego: float) -> float:
     vel_err = np.clip(modelV2.temporalPose.trans[0] - v_ego, -MAX_VEL_ERR, MAX_VEL_ERR)
     return float(vel_err)
   return 0.0
+
+
+def get_accel_from_plan(speeds, accels, t_idxs, action_t=DT_MDL, vEgoStopping=0.05, jerks=None):
+  if len(speeds) == len(t_idxs):
+    v_now = speeds[0]
+    a_now = accels[0]
+
+    v_target = np.interp(action_t, t_idxs, speeds)
+    if jerks is not None:
+      j_target = np.interp(action_t, t_idxs, jerks)
+    else:
+      j_target = 0.0
+    a_target = 2 * (v_target - v_now) / (action_t) - a_now
+    v_target_1sec = np.interp(action_t + 1.0, t_idxs, speeds)
+  else:
+    v_target = 0.0
+    j_target = 0.0
+    v_target_1sec = 0.0
+    a_target = 0.0
+  should_stop = (v_target < vEgoStopping and
+                 v_target_1sec < vEgoStopping)
+  return a_target, should_stop, v_target, j_target
+

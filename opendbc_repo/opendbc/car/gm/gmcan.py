@@ -72,14 +72,17 @@ def create_gas_regen_command(packer, bus, throttle, idx, enabled, at_full_stop):
   values = {
     "GasRegenCmdActive": enabled,
     "RollingCounter": idx,
+    "GasRegenCmdActiveInv": 1 - enabled,
     "GasRegenCmd": throttle,
     "GasRegenFullStopActive": at_full_stop,
-    "GasRegenAccType": 1,
+    "GasRegenAlwaysOne": 1,
+    "GasRegenAlwaysOne2": 1,
+    "GasRegenAlwaysOne3": 1,
+    #"NEW_SIGNAL_1" : 0 if at_full_stop else 3,
   }
 
   dat = packer.make_can_msg("ASCMGasRegenCmd", bus, values)[1]
-  values["GasRegenChecksum"] = ((1 - enabled) << 24) | \
-                               (((0xff - dat[1]) & 0xff) << 16) | \
+  values["GasRegenChecksum"] = (((0xff - dat[1]) & 0xff) << 16) | \
                                (((0xff - dat[2]) & 0xff) << 8) | \
                                ((0x100 - dat[3] - idx) & 0xff)
 
@@ -186,6 +189,11 @@ def create_lka_icon_command(bus, active, critical, steer):
     dat = b"\x00\x00\x00"
   return CanData(0x104c006c, dat, bus)
 
+def create_regen_paddle_command(packer, bus):
+  values = {
+    "RegenPaddle": 0x20, #이 값은 패들의 강도일 가능성이 있음.
+  }
+  return packer.make_can_msg("EBCMRegenPaddle", bus, values)
 
 def create_gm_cc_spam_command(packer, controller, CS, actuators):
   # if controller.params_.get_bool("IsMetric"):

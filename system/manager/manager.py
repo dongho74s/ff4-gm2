@@ -71,7 +71,6 @@ def get_default_params():
     ("AutoTurnControl", "0"),
     ("AutoTurnControlSpeedTurn", "20"),
     ("AutoTurnControlTurnEnd", "6"),
-    ("GpsDelayTimeAdjust", "200"),
     ("AutoTurnMapChange", "0"),
 
     ("AutoNaviSpeedCtrlEnd", "7"),
@@ -92,6 +91,7 @@ def get_default_params():
     ("CruiseButtonTest2", "30"),
     ("CruiseButtonTest3", "1"),
     ("CruiseSpeedUnit", "10"),
+    ("PaddleMode", "0"),
     ("MyDrivingMode", "3"),
     ("MyDrivingModeAuto", "0"),
     ("TrafficLightDetectMode", "2"),
@@ -129,9 +129,6 @@ def get_default_params():
     ("AdjustLaneTime", "13"),
     ("LaneChangeNeedTorque", "0"),
     ("MaxAngleFrames", "89"),
-    ("CarrotLatControl", "0"),
-    ("CarrotLatControl2", "0"),
-    ("DampingFactor", "0"),
     ("LateralTorqueCustom", "0"),
     ("LateralTorqueAccelFactor", "2500"),
     ("LateralTorqueFriction", "100"),
@@ -140,9 +137,7 @@ def get_default_params():
     ("LateralTorqueKf", "100"),
     ("LateralTorqueKd", "0"),
     ("LatMpcPathCost", "100"),
-    ("LatMpcPathCostTurn", "200"),
     ("LatMpcMotionCost", "11"),
-    ("LatMpcMotionCostTurn", "1"),
     ("LatMpcAccelCost", "0"),
     ("LatMpcJerkCost", "4"),
     ("LatMpcSteeringRateCost", "700"),
@@ -160,6 +155,8 @@ def get_default_params():
     ("CustomSR", "0"),
     ("SteerRatioRate", "100"),
     ("PathFactor", "90"),
+    ("NNFF", "0"),
+    ("NNFFLite", "0"),
   ]
   return default_params
 

@@ -150,8 +150,6 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     audio10 @113;
     audio0 @114;
 
-    torqueNNLoad @115;
-
     soundsUnavailableDEPRECATED @47;
   }
 }
@@ -1218,6 +1216,10 @@ struct ModelDataV2 {
 
   struct Action {
     desiredCurvature @0 :Float32;
+    desiredAcceleration @1 :Float32;
+    shouldStop @2 :Bool;
+    desiredVelocity @3 :Float32;
+    desiredJerk @4 :Float32;
   }
 }
 
@@ -1643,6 +1645,10 @@ struct UbloxGnss {
       svId @0 :UInt8;
       gnssId @1 :UInt8;
       flagsBitfield @2 :UInt32;
+      cno @3 :UInt8;
+      elevationDeg @4 :Int8;
+      azimuthDeg @5 :Int16;
+      pseudorangeResidual @6 :Float32;
     }
   }
 
@@ -2307,7 +2313,7 @@ struct LiveParametersData {
   stiffnessFactorValid @20 :Bool = true;
 
   yawRateDEPRECATED @7 :Float32;
-  filterState @15 :LiveLocationKalman.Measurement;
+  filterStateDEPRECATED @15 :LiveLocationKalman.Measurement;
 
   struct FilterState {
     value @0 : List(Float64);
@@ -2329,6 +2335,22 @@ struct LiveTorqueParametersData {
   points @10 :List(List(Float32));
   version @11 :Int32;
   useParams @12 :Bool;
+}
+
+struct LiveDelayData {
+  lateralDelay @0 :Float32;
+  validBlocks @1 :Int32;
+  status @2 :Status;
+
+  lateralDelayEstimate @3 :Float32;
+  lateralDelayEstimateStd @5 :Float32;
+  points @4 :List(Float32);
+
+  enum Status {
+    unestimated @0;
+    estimated @1;
+    invalid @2;
+  }
 }
 
 struct LiveMapDataDEPRECATED {
@@ -2561,6 +2583,7 @@ struct Event {
     gnssMeasurements @91 :GnssMeasurements;
     liveParameters @61 :LiveParametersData;
     liveTorqueParameters @94 :LiveTorqueParametersData;
+    liveDelay @146 : LiveDelayData;
     cameraOdometry @63 :CameraOdometry;
     thumbnail @66: Thumbnail;
     onroadEvents @134: List(OnroadEvent);

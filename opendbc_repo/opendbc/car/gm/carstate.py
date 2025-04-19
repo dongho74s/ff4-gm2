@@ -7,7 +7,7 @@ from opendbc.can.parser import CANParser
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, SDGM_CAR, ALT_ACCS, \
+from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, GMFlags, SDGM_CAR, ALT_ACCS, \
   CC_ONLY_CAR, CAMERA_ACC_CAR, CAR
 
 ButtonType = structs.CarState.ButtonEvent.Type
