@@ -32,6 +32,7 @@ class CarController(CarControllerBase):
     self.apply_torque_last = 0
     self.apply_gas = 0
     self.apply_brake = 0
+    # kans: button spam
     self.apply_speed = 0
     self.frame = 0
     self.last_steer_frame = 0
@@ -163,7 +164,7 @@ class CarController(CarControllerBase):
       if self.frame % 4 == 0:
       # GM: softHold
         stopping = actuators.longControlState == LongCtrlState.stopping or CS.out.softHoldActive > 0
-        interceptor_gas_cmd = 0
+
         # Pitch compensated acceleration;
         # TODO: include future pitch (sm['modelDataV2'].orientation.y) to account for long actuator delay
         if self.long_pitch and len(CC.orientationNED) > 1:
@@ -174,6 +175,7 @@ class CarController(CarControllerBase):
 
         at_full_stop = CC.longActive and CS.out.standstill
         near_stop = CC.longActive and (abs(CS.out.vEgo) < self.params.NEAR_STOP_BRAKE_PHASE)
+        interceptor_gas_cmd = 0
         press_regen_paddle = False
         if not CC.longActive:
           # ASCM sends max regen when not enabled
