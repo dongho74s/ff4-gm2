@@ -102,12 +102,12 @@ static bool nissan_tx_hook(const CANPacket_t *to_send) {
 
 static safety_config nissan_init(uint16_t param) {
   static const CanMsg NISSAN_TX_MSGS[] = {
-    {0x169, 0, 8, true},   // LKAS
-    {0x2b1, 0, 8, false},  // PROPILOT_HUD
-    {0x4cc, 0, 8, false},  // PROPILOT_HUD_INFO_MSG
-    {0x20b, 2, 6, false},  // CRUISE_THROTTLE (X-Trail)
-    {0x20b, 1, 6, false},  // CRUISE_THROTTLE (Altima)
-    {0x280, 2, 8, false}   // CANCEL_MSG (Leaf)
+    {0x169, 0, 8, .check_relay = true},   // LKAS
+    {0x2b1, 0, 8, .check_relay = true},   // PROPILOT_HUD
+    {0x4cc, 0, 8, .check_relay = true},   // PROPILOT_HUD_INFO_MSG
+    {0x20b, 2, 6, .check_relay = false},  // CRUISE_THROTTLE (X-Trail)
+    {0x20b, 1, 6, .check_relay = false},  // CRUISE_THROTTLE (Altima)
+    {0x280, 2, 8, .check_relay = true}    // CANCEL_MSG (Leaf)
   };
 
   // Signals duplicated below due to the fact that these messages can come in on either CAN bus, depending on car model.
