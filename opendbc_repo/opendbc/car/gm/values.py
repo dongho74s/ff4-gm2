@@ -81,6 +81,7 @@ class GMSafetyFlags(IntFlag):
   NO_ACC = 32
   PEDAL_LONG = 64  # TODO: This can be inferred
   GAS_INTERCEPTOR = 128
+  EV = 256
 
 
 @dataclass
