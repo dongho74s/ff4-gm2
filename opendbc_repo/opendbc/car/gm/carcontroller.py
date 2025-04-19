@@ -56,7 +56,6 @@ class CarController(CarControllerBase):
     self.accel_g = 0.0
     # GM: AutoResume
     self.activateCruise_after_brake = False
-    self.v_cruise_carrot = VCruiseCarrot(self.CP)
   @staticmethod
   def calc_pedal_command(accel: float, long_active: bool, v_ego: float) -> float:
     if not long_active:
