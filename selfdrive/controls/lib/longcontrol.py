@@ -66,7 +66,7 @@ class LongControl:
   def reset(self):
     self.pid.reset()
 
-  def update(self, active, CS, long_plan, accel_limits, t_since_plan):
+  def update(self, active, CS, long_plan, accel_limits, t_since_plan, radarState):
 
     soft_hold_active = CS.softHoldActive > 0
     a_target = long_plan.aTarget
@@ -74,11 +74,21 @@ class LongControl:
     j_target = long_plan.jTarget
     should_stop = long_plan.shouldStop
 
+    long_delay = self.params.get_float("LongActuatorDelay")*0.01 + t_since_plan
+    j_lead_factor = self.params.get_float("JLeadFactor") * 0.01
+    j_lead = 0.0
+    if j_lead_factor > 0.0 and radarState.leadOne.status:
+      j_lead = np.clip(radarState.leadOne.jLead, -2.0, 2.0)
+      plan_alpha = np.interp(abs(j_lead), [0.0, 2.0], [0.0, j_lead_factor])
+    else:
+      plan_alpha = 0.0
     speeds = long_plan.speeds
     if len(speeds) == CONTROL_N:
-      v_target_now = np.interp(t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], long_plan.speeds)
-      a_target_now = np.interp(t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], long_plan.accels)
-      j_target_now = long_plan.jerks[0] #np.interp(t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], long_plan.jerks)
+      j_target_now = long_plan.jerks[0] #np.interp(long_delay, ModelConstants.T_IDXS[:CONTROL_N], long_plan.jerks)
+      if j_target_now * j_lead < 0.0:
+        plan_alpha = 0.0
+      v_target_now = np.interp(long_delay + plan_alpha, ModelConstants.T_IDXS[:CONTROL_N], long_plan.speeds)
+      a_target_now = np.interp(long_delay + plan_alpha, ModelConstants.T_IDXS[:CONTROL_N], long_plan.accels)
     else:
       v_target_now = a_target_now = j_target_now = 0.0
 
@@ -129,7 +139,7 @@ class LongControl:
       #error = a_target_now - CS.aEgo
       error = v_target_now - CS.vEgo
       output_accel = self.pid.update(error, speed=CS.vEgo,
-                                     feedforward=a_target)
+                                     feedforward=a_target_now)
 
     self.last_output_accel = np.clip(output_accel, accel_limits[0], accel_limits[1])
     return self.last_output_accel, a_target_now, j_target_now
