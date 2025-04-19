@@ -76,6 +76,11 @@ class GMSafetyFlags(IntFlag):
   HW_CAM = 1
   HW_CAM_LONG = 2
   EV = 4
+  FLAG_GM_NO_ACC = 8
+  FLAG_GM_GAS_INTERCEPTOR = 16
+  FLAG_GM_PEDAL_LONG = 32
+  FLAG_GM_CC_LONG = 64
+
 
 
 @dataclass
@@ -100,7 +105,7 @@ class GMCarSpecs(CarSpecs):
 @dataclass
 class GMPlatformConfig(PlatformConfig):
   dbc_dict: DbcDict = field(default_factory=lambda: {
-    Bus.pt: 'gm_global_a_powertrain_volt',
+    Bus.pt: 'gm_global_a_powertrain_generated',
     Bus.radar: 'gm_global_a_object',
     Bus.chassis: 'gm_global_a_chassis',
   })
@@ -113,11 +118,14 @@ class GMCT6PlatformConfig(PlatformConfig):
     Bus.chassis: 'cadillac_ct6_chassis',
   })
 
-class GMASCMPlatformConfig(GMPlatformConfig):
-  def init(self):
-    # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
-    #self.car_docs = []
-    pass
+@dataclass
+class GMASCMPlatformConfig(PlatformConfig):
+  dbc_dict: DbcDict = field(default_factory=lambda: {
+    Bus.pt: 'gm_global_a_powertrain_volt',
+    Bus.radar: 'gm_global_a_object',
+    Bus.chassis: 'gm_global_a_chassis',
+  })
+
 
 @dataclass
 class GMSDGMPlatformConfig(GMPlatformConfig):
@@ -132,9 +140,9 @@ class CAR(Platforms):
     [GMCarDocs("Holden Astra 2017")],
     GMCarSpecs(mass=1363, wheelbase=2.662, steerRatio=15.7, centerToFrontRatio=0.4),
   )
-  CHEVROLET_VOLT = GMPlatformConfig(
+  CHEVROLET_VOLT = GMASCMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ")],
-    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469),
+    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469, minEnableSpeed=-1),
   )
   CADILLAC_ATS = GMASCMPlatformConfig(
     [GMCarDocs("Cadillac ATS Premium Performance 2018")],
@@ -291,6 +299,10 @@ class CanBus:
   CHASSIS = 2
   LOOPBACK = 128
   DROPPED = 192
+
+class GMFlags(IntFlag):
+  PEDAL_LONG = 1
+  CC_LONG = 2
 
 
 # In a Data Module, an identifier is a string used to recognize an object,
