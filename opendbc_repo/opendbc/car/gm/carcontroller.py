@@ -47,6 +47,9 @@ class CarController(CarControllerBase):
     self.packer_obj = CANPacker(DBC[self.CP.carFingerprint][Bus.radar])
     self.packer_ch = CANPacker(DBC[self.CP.carFingerprint][Bus.chassis])
 
+    self.long_pitch = False
+    self.use_ev_tables = False
+
   @staticmethod
   def calc_pedal_command(accel: float, long_active: bool, v_ego: float) -> float:
     if not long_active:
