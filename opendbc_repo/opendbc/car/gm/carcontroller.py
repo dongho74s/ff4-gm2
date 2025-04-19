@@ -33,6 +33,7 @@ class CarController(CarControllerBase):
     self.apply_gas = 0
     self.apply_brake = 0
     self.apply_speed = 0
+    self.frame = 0
     self.last_steer_frame = 0
     self.last_button_frame = 0
     self.cancel_counter = 0
@@ -42,6 +43,7 @@ class CarController(CarControllerBase):
     self.lka_icon_status_last = (False, False)
 
     self.params = CarControllerParams(self.CP)
+    self.params_ = Params() # kans: button spam
 
     self.packer_pt = CANPacker(DBC[self.CP.carFingerprint][Bus.pt])
     self.packer_obj = CANPacker(DBC[self.CP.carFingerprint][Bus.radar])
@@ -50,6 +52,11 @@ class CarController(CarControllerBase):
     self.long_pitch = False
     self.use_ev_tables = False
 
+    self.pitch = FirstOrderFilter(0., 0.09 * 4, DT_CTRL * 4)  # runs at 25 Hz
+    self.accel_g = 0.0
+    # GM: AutoResume
+    self.activateCruise_after_brake = False
+    self.v_cruise_carrot = VCruiseCarrot(self.CP)
   @staticmethod
   def calc_pedal_command(accel: float, long_active: bool, v_ego: float) -> float:
     if not long_active:
