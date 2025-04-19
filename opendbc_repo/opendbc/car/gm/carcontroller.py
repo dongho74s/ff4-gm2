@@ -174,7 +174,6 @@ class CarController(CarControllerBase):
 
         at_full_stop = CC.longActive and CS.out.standstill
         near_stop = CC.longActive and (abs(CS.out.vEgo) < self.params.NEAR_STOP_BRAKE_PHASE)
-        interceptor_gas_cmd = 0
         press_regen_paddle = False
         if not CC.longActive:
           # ASCM sends max regen when not enabled
@@ -203,7 +202,7 @@ class CarController(CarControllerBase):
 
         if self.CP.enableGasInterceptorDEPRECATED and self.apply_gas > self.params.INACTIVE_REGEN and CS.out.cruiseState.standstill:
           # "Tap" the accelerator pedal to re-engage ACC
-          interceptor_gas_cmd = self.params.SNG_INTERCEPTOR_GAS
+          interceptor_gas_cmd = 18. / 255.
           self.apply_brake = 0
           press_regen_paddle = False
           self.apply_gas = self.params.INACTIVE_REGEN
