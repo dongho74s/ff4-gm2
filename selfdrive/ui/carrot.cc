@@ -1864,7 +1864,7 @@ public:
     int     trafficState = 0;
     int     trafficState_carrot = 0;
     int     active_carrot = 0;
-    float   xTarget = 0.0;
+    float   cruiseTarget = 0.0;
     int     myDrivingMode = 1;
 
     QString szPosRoadName = "";
@@ -1967,7 +1967,7 @@ public:
 
         xState = lp.getXState();
         trafficState = lp.getTrafficState();
-        xTarget = lp.getXTarget();
+        cruiseTarget = lp.getCruiseTarget();
         myDrivingMode = lp.getMyDrivingMode();
 
         s->max_distance = std::clamp(*(model_position.getX().end() - 1),
@@ -2180,8 +2180,8 @@ public:
             ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, apply_source.toStdString().c_str(), 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
         }
-		    else if(abs(xTarget - v_cruise) > 0.5) {
-            sprintf(apply_speed_str, "%.0f", xTarget);
+		    else if(abs(cruiseTarget - v_cruise) > 0.5) {
+            sprintf(apply_speed_str, "%.0f", cruiseTarget);
 			      ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, "eco", 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 		    }

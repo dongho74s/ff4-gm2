@@ -413,9 +413,9 @@
       "etitle": "JerkLeadFactor(30)",
       "edescr": "",
       "min": 0,
-      "max": 100,
-      "default": 30,
-      "unit": 5
+      "max": 200,
+      "default": 0,
+      "unit": 10
     },
     {
       "group": "주행튜닝",
