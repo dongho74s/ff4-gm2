@@ -319,7 +319,7 @@ class LongitudinalMpc:
     return lead_xv
   
   @staticmethod
-  def extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau):
+  def extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau, j_lead_tau):
     a_lead_traj = np.zeros_like(T_IDXS)
     a_lead_traj[0] = a_lead 
 
@@ -331,8 +331,7 @@ class LongitudinalMpc:
             + j_lead * dt  # `j_lead` 감쇄 없이 그대로 적용
         )
     """
-    # `j_lead`도 감쇄하고 싶다면 아래 코드 사용
-    j_lead_tau = 0.4
+    # `j_lead` 감쇄
     for i in range(1, len(T_IDXS)):
       dt = T_IDXS[i] - T_IDXS[i - 1]
       j_lead_decayed = j_lead * np.exp(-j_lead_tau * dt)
@@ -368,19 +367,20 @@ class LongitudinalMpc:
     x_lead = np.clip(x_lead, min_x_lead, 1e8)
     v_lead = np.clip(v_lead, 0.0, 1e8)
     a_lead = np.clip(a_lead, -10., 5.)
-    j_lead = np.clip(j_lead, -2., 2.)
+    #j_lead = np.clip(j_lead, -2., 2.)
 
-    j_lead *=  carrot.j_lead_factor
-    #if j_lead > 0 and a_lead < 0 and (v_lead - v_ego) > 0 and x_lead > self.desired_distance:
+    #j_lead_tau = np.interp(abs(j_lead), [0.0, 0.5, 2.0], [0.8, 0.4, 0.1])
+    #j_lead *=  carrot.j_lead_factor
+    '''
     if j_lead > 0 and a_lead < 0 and x_lead > self.desired_distance:
       a_lead += min(j_lead, 0.5)
       a_lead = min(a_lead, 0.0)
 
     if j_lead < 0 and a_lead < -0.5:
       a_lead -= min(abs(j_lead)*1.5, 0.8)
-    
+    '''
     lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau)
-    #lead_xv = self.extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau)
+    #lead_xv = self.extrapolate_lead_with_j(x_lead, v_lead, a_lead, j_lead, a_lead_tau, j_lead_tau)
     return lead_xv, v_lead
 
   def set_accel_limits(self, min_a, max_a):
