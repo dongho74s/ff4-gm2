@@ -76,13 +76,13 @@ class SelfdriveD:
       ignore += ['driverCameraState', 'managerState']
     elif self.disable_dm > 0:
       self.camera_packets.remove("driverCameraState")
-      ignore += ['driverMonitoringState']
+    ignore += ['driverMonitoringState']
 
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['roadCameraState', 'wideRoadCameraState']
     self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
-                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', #'liveDelay',
+                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', # 'liveDelay',
                                    'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
                                    'carrotMan',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug'] + \

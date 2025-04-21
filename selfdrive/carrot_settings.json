@@ -406,15 +406,15 @@
     },
     {
       "group": "주행튜닝",
-      "name": "JLeadFactor",
-      "title": "JerkLeadFactor(30)",
-      "descr": "x0.01, 값이 크면 전방차량의 Jerk에 민감하게 반응",
+      "name": "JLeadFactor2",
+      "title": "JerkLeadFactor(0)",
+      "descr": "값이 작으면 전방차량의 Jerk에 민감하게 반응",
       "egroup": "LONG",
-      "etitle": "JerkLeadFactor(30)",
+      "etitle": "JerkLeadFactor(0)",
       "edescr": "",
-      "min": 0,
-      "max": 200,
-      "default": 0,
+      "min": 10,
+      "max": 100,
+      "default": 100,
       "unit": 10
     },
     {
