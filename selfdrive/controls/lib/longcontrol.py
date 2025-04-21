@@ -71,10 +71,10 @@ class LongControl:
     soft_hold_active = CS.softHoldActive > 0
     a_target = long_plan.aTarget
     should_stop = long_plan.shouldStop
-
+    velocity_pid = self.params.get_float("LongVelocityControl")
     long_delay = self.params.get_float("LongActuatorDelay")*0.01 + t_since_plan
     j_lead_factor = self.params.get_float("JLeadFactor") * 0.01
-    if j_lead_factor > 0.0 and radarState.leadOne.status:
+    if j_lead_factor > 0.0 and radarState.leadOne.status and velocity_pid == 0:
       j_lead = np.clip(radarState.leadOne.jLead, -2.0, 2.0)
       plan_alpha = np.interp(abs(j_lead), [0.0, 2.0], [0.0, j_lead_factor])
     else:
@@ -134,8 +134,10 @@ class LongControl:
       self.reset()
 
     else:  # LongCtrlState.pid
-      error = a_target_now - CS.aEgo
-      #error = v_target_now - CS.vEgo
+      if velocity_pid == 0:
+        error = a_target_now - CS.aEgo
+      else:
+        error = v_target_now - CS.vEgo
       output_accel = self.pid.update(error, speed=CS.vEgo,
                                      feedforward=a_target_now)
 
