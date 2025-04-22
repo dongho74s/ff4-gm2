@@ -47,11 +47,11 @@ class CarController(CarControllerBase):
     self.params_ = Params() # kans: button spam
     # for SDGM
 
-     self.mass = CP.mass
-     self.tireRadius = 0.075 * CP.wheelbase + 0.1453
-     self.frontalArea = 1.05 * CP.wheelbase + 0.0679
-     self.coeffDrag = 0.30
-     self.airDensity = 1.225
+    self.mass = CP.mass
+    self.tireRadius = 0.075 * CP.wheelbase + 0.1453
+    self.frontalArea = 1.05 * CP.wheelbase + 0.0679
+    self.coeffDrag = 0.30
+    self.airDensity = 1.225
 
     self.packer_pt = CANPacker(DBC[self.CP.carFingerprint][Bus.pt])
     self.packer_obj = CANPacker(DBC[self.CP.carFingerprint][Bus.radar])
