@@ -35,16 +35,20 @@ class CarControllerParams:
 
   def __init__(self, CP):
     # Gas/brake lookups
-    self.ZERO_GAS = 2048  # Coasting
+    if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR):
+      self.ZERO_GAS = 2054  # Coasting
+    else:
+      self.ZERO_GAS = 2048  # Coasting
     self.MAX_BRAKE = 400  # ~ -4.0 m/s^2 with regen
 
     if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR):
       self.MAX_GAS = 3400
       self.MAX_ACC_REGEN = 1514
       self.INACTIVE_REGEN = 1554
+      self.BRAKE_SWITCH_MAX = self.MAX_ACC_REGEN if CP.carFingerprint in EV_CAR else self.ZERO_GAS
       # Camera ACC vehicles have no regen while enabled.
       # Camera transitions to MAX_ACC_REGEN from ZERO_GAS and uses friction brakes instantly
-      max_regen_acceleration = 0.
+      # max_regen_acceleration = 0.
 
     else:
       self.MAX_GAS = 3072  # Safety limit, not ACC max. Stock ACC >4096 from standstill.
@@ -52,13 +56,23 @@ class CarControllerParams:
       self.INACTIVE_REGEN = 1404
       # ICE has much less engine braking force compared to regen in EVs,
       # lower threshold removes some braking deadzone
-      max_regen_acceleration = -1. if CP.carFingerprint in EV_CAR else -0.1
+      if CP.carFingerpring in EV_CAR:
+        max_regen_acceleration = -1. if CP.carFingerprint in CAR.CHEVROLET_VOLT else -0.1
+      else:
+        self.BRAKE_SWITCH_MAX = self.MAX_ACC_REGEN if CP.carFingerprint not in CAR.CHEVROLET_VOLT else self.ZERO_GAS
 
-    self.GAS_LOOKUP_BP = [max_regen_acceleration, 0., self.ACCEL_MAX]
-    self.GAS_LOOKUP_V = [self.MAX_ACC_REGEN, self.ZERO_GAS, self.MAX_GAS]
+    if CP.carFingerpring in CAR.CHEVROLET_VOLT:
+      self.GAS_LOOKUP_BP = [max_regen_acceleration, 0., self.ACCEL_MAX]
+      self.GAS_LOOKUP_V = [self.MAX_ACC_REGEN, self.ZERO_GAS, self.MAX_GAS]
 
-    self.BRAKE_LOOKUP_BP = [self.ACCEL_MIN, max_regen_acceleration]
-    self.BRAKE_LOOKUP_V = [self.MAX_BRAKE, 0.]
+      self.BRAKE_LOOKUP_BP = [self.ACCEL_MIN, max_regen_acceleration]
+      self.BRAKE_LOOKUP_V = [self.MAX_BRAKE, 0.]
+    else:
+      self.BRAKE_LOOKUP_BP = [self.ACCEL_MIN, 0.]
+      self.BRAKE_LOOKUP_V = [self.MAX_BRAKE, 0.]
+
+      self.BRAKE_SWITCH_LOOKUP_BP = [0.5, 10]
+      self.BRAKE_SWITCH_LOOKUP_V = [self.ZERO_GAS, self.BRAKE_SWITCH_MAX]
 
   # determined by letting Volt regen to a stop in L gear from 89mph,
   # and by letting off gas and allowing car to creep, for determining
@@ -81,6 +95,7 @@ class GMSafetyFlags(IntFlag):
   NO_ACC = 32
   PEDAL_LONG = 64  # TODO: This can be inferred
   GAS_INTERCEPTOR = 128
+  HW_SDGM = 256
 
 @dataclass
 class GMCarDocs(CarDocs):

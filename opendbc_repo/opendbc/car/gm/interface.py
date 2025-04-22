@@ -112,21 +112,21 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalTuning.kiBP = [0.]
 
     if candidate in (CAMERA_ACC_CAR | SDGM_CAR):
-      ret.experimentalLongitudinalAvailable = candidate not in (CC_ONLY_CAR | SDGM_CAR)
+      ret.alphaLongitudinalAvailable = candidate not in (CC_ONLY_CAR | SDGM_CAR)
       ret.networkLocation = NetworkLocation.fwdCamera
       ret.radarUnavailable = True  # no radar
       ret.pcmCruise = True
       ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.HW_CAM.value
-      ret.minEnableSpeed = -1 if candidate in SDGM_CAR else 5 * CV.KPH_TO_MS
+      ret.minEnableSpeed = 5 * CV.KPH_TO_MS
       ret.minSteerSpeed = 10 * CV.KPH_TO_MS
 
       # Tuning for experimental long
       ret.longitudinalTuning.kpV = [1.0]
       ret.longitudinalTuning.kiV = [1.0]
-      ret.stoppingDecelRate = 2.0  # reach brake quickly after enabling
+      ret.stoppingDecelRate = 1.0  # reach brake quickly after enabling
       ret.vEgoStopping = 0.25
       ret.vEgoStarting = 0.25
-      ret.stopAccel = -0.4
+      ret.stopAccel = -0.25
       ret.startingState = True
       ret.startAccel = 1.5
 
@@ -140,6 +140,10 @@ class CarInterface(CarInterfaceBase):
         ret.openpilotLongitudinalControl = False
         ret.minEnableSpeed = -1.  # engage speed is decided by PCM
 
+      if candidate in SDGM_CAR:
+        ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.HW_SDGM.value
+        if not ret.openpilotLongitudinalControl:
+          ret.minEnableSpeed = -1.  # engage speed is decided by pcm
     else:  # ASCM, OBD-II harness
       ret.openpilotLongitudinalControl = True
       ret.networkLocation = NetworkLocation.gateway
@@ -151,7 +155,7 @@ class CarInterface(CarInterfaceBase):
 
       # Tuning
       ret.longitudinalTuning.kpV = [1.0]
-      ret.longitudinalTuning.kiV = [0.3]
+      ret.longitudinalTuning.kiV = [0.5]
 
       if ret.enableGasInterceptorDEPRECATED:
         # Need to set ASCM long limits when using pedal interceptor, instead of camera ACC long limits

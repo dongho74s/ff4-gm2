@@ -23,6 +23,7 @@ static bool gm_pedal_long = false;
 static bool gm_cc_long = false;
 static bool gm_skip_relay_check = false;
 static bool gm_force_ascm = false;
+static bool gm_sdgm = false;
 
 static void gm_rx_hook(const CANPacket_t *to_push) {
 
@@ -70,14 +71,14 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
 
     // Reference for brake pressed signals:
     // https://github.com/commaai/openpilot/blob/master/selfdrive/car/gm/carstate.py
-    if (gm_hw == GM_ASCM) {
+    if ((gm_hw == GM_ASCM) || gm_sdgm)) { //ASCM&SDGM용 브레이크 감지
       if (addr == 0xBE || addr == 0xF1) {
         brake_pressed = GET_BYTE(to_push, 1) >= (addr == 0xBE ? 10U : 15U);
       }
     }
 
     if (addr == 0xC9) {
-      if (gm_hw == GM_CAM) {
+      if ((gm_hw == GM_CAM) && !gm_sdgm)) {
         brake_pressed = GET_BIT(to_push, 40U);  // Bolt용 브레이크 감지
       }
       acc_main_on = GET_BIT(to_push, 29U);  // VOLT, BOLT 모두 acc_main_on 사용
@@ -240,6 +241,7 @@ static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_ASCM_LONG = 16;
   const uint16_t GM_PARAM_NO_ACC = 32;
   const uint16_t GM_PARAM_PEDAL_LONG = 64;  // TODO: this can be inferred
+  const uint16_t GM_PARAM_HW_SDGM = 256;
 
   static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
     .max_gas = 3072,
@@ -265,7 +267,7 @@ static safety_config gm_init(uint16_t param) {
   };
 
   static const CanMsg GM_CAM_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x315, 0, 5}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7},  // pt bus
-                                               {0x184, 2, 8}};  // camera bus
+                                               {0x315, 2, 5}, {0x184, 2, 8}};  // camera bus
 
 
   // TODO: do checksum and counter checks. Add correct timestep, 0.1s for now.
@@ -287,6 +289,7 @@ static safety_config gm_init(uint16_t param) {
 
   gm_hw = GET_FLAG(param, GM_PARAM_HW_CAM) ? GM_CAM : GM_ASCM;
   gm_force_ascm = GET_FLAG(param, GM_PARAM_HW_ASCM_LONG);
+  gm_sdgm = GET_FLAG(param, GM_PARAM_HW_SDGM);
 
   if ((gm_hw == GM_ASCM) || gm_force_ascm) {
     gm_long_limits = &GM_ASCM_LONG_LIMITS;
