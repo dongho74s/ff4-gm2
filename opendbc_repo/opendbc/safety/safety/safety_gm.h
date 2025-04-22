@@ -71,14 +71,14 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
 
     // Reference for brake pressed signals:
     // https://github.com/commaai/openpilot/blob/master/selfdrive/car/gm/carstate.py
-    if ((gm_hw == GM_ASCM) || gm_sdgm)) { //ASCM&SDGM용 브레이크 감지
+    if ((gm_hw == GM_ASCM) || gm_sdgm) { //ASCM&SDGM용 브레이크 감지
       if (addr == 0xBE || addr == 0xF1) {
         brake_pressed = GET_BYTE(to_push, 1) >= (addr == 0xBE ? 10U : 15U);
       }
     }
 
     if (addr == 0xC9) {
-      if ((gm_hw == GM_CAM) && !gm_sdgm)) {
+      if ((gm_hw == GM_CAM) && !gm_sdgm) {
         brake_pressed = GET_BIT(to_push, 40U);  // Bolt용 브레이크 감지
       }
       acc_main_on = GET_BIT(to_push, 29U);  // VOLT, BOLT 모두 acc_main_on 사용
