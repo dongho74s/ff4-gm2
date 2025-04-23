@@ -56,12 +56,12 @@ class CarControllerParams:
       self.INACTIVE_REGEN = 1404
       # ICE has much less engine braking force compared to regen in EVs,
       # lower threshold removes some braking deadzone
-      if CP.carFingerpring in EV_CAR:
+      if CP.carFingerprint in EV_CAR:
         max_regen_acceleration = -1. if CP.carFingerprint in CAR.CHEVROLET_VOLT else -0.1
       else:
         self.BRAKE_SWITCH_MAX = self.MAX_ACC_REGEN if CP.carFingerprint not in CAR.CHEVROLET_VOLT else self.ZERO_GAS
 
-    if CP.carFingerpring in CAR.CHEVROLET_VOLT:
+    if CP.carFingerprint in CAR.CHEVROLET_VOLT:
       self.GAS_LOOKUP_BP = [max_regen_acceleration, 0., self.ACCEL_MAX]
       self.GAS_LOOKUP_V = [self.MAX_ACC_REGEN, self.ZERO_GAS, self.MAX_GAS]
 
