@@ -45,7 +45,7 @@ static void handle_gm_wheel_buttons(const CANPacket_t *to_push) {
 
 static void gm_rx_hook(const CANPacket_t *to_push) {
   if ((GET_BUS(to_push) == 2U) && (GET_ADDR(to_push) == 0x1E1) && (gm_hw == GM_SDGM)) {
-    // SDGM buttons are on bus 2
+    // SDGM은 BUS2(Camera버스) 사용.
     handle_gm_wheel_buttons(to_push);
   }
 
@@ -72,27 +72,27 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
       vehicle_moving = (left_rear_speed > GM_STANDSTILL_THRSLD) || (right_rear_speed > GM_STANDSTILL_THRSLD);
     }
 
-    // ACC steering wheel buttons (GM_CAM is tied to the PCM)
+    // ACC steering wheel buttons (GM_CAM and GM_SDGM are tied to the PCM)
     if ((addr == 0x1E1) && (!gm_pcm_cruise || gm_cc_long) && (gm_hw != GM_SDGM)) {
       handle_gm_wheel_buttons(to_push);
     }
 
     // Reference for brake pressed signals:
     // https://github.com/commaai/openpilot/blob/master/selfdrive/car/gm/carstate.py
-    if ((gm_hw == GM_ASCM) || gm_sdgm) { //ASCM&SDGM용 브레이크 감지
+    if (gm_hw == GM_ASCM) {
       if (addr == 0xBE) {
-        brake_pressed = GET_BYTE(to_push, 1) >= 10U;
+        brake_pressed = GET_BYTE(to_push, 1) >= 10U; //핑거190 브레이크답력
       }
       if (addr == 0xF1) {
-        brake_pressed = GET_BYTE(to_push, 1) >= 15U;
+        brake_pressed = GET_BYTE(to_push, 1) >= 15U; //핑거241 브레이크답력
       }
     }
 
     if (addr == 0xC9) {
-      if ((gm_hw == GM_CAM) && !gm_sdgm) {
-        brake_pressed = GET_BIT(to_push, 40U);  // Bolt용 브레이크 감지
+      if ((gm_hw == GM_CAM) || (gm_hw == GM_SDGM)) {
+        brake_pressed = GET_BIT(to_push, 40U);  // Bolt,SDGM 브레이크 체크
       }
-      acc_main_on = GET_BIT(to_push, 29U);  //모든 차량 acc_main_on 사용
+      acc_main_on = GET_BIT(to_push, 29U);  // 크루즈 메인스위치 체크
     }
 
     if (addr == 0x1C4) {
@@ -314,7 +314,7 @@ static safety_config gm_init(uint16_t param) {
 
   if ((gm_hw == GM_ASCM) || gm_force_ascm) {
     gm_long_limits = &GM_ASCM_LONG_LIMITS;
-  } else if ((gm_hw == GM_CAM) || (gm_hw == GM_SDGM)) {
+  } else if ((gm_hw == GM_CAM) || gm_sdgm) {
       gm_long_limits = &GM_CAM_LONG_LIMITS;
   } else {
   }
