@@ -171,7 +171,7 @@ class CarState(CarStateBase):
       else:
         ret.cruiseState.speed = pt_cp.vl["ECMCruiseControl"]["CruiseSetSpeed"] * CV.KPH_TO_MS
 
-      if self.CP.carFingerprint not in SDGM_CAR:
+      if self.CP.carFingerprint not in (SDGM_CAR, CAR.CHEVROLET_EQUINOX):
         ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
 
     if self.CP.carFingerprint in CC_ONLY_CAR:
