@@ -119,11 +119,11 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"UpdaterTargetBranch", CLEAR_ON_MANAGER_START},
     {"UpdaterLastFetchTime", PERSISTENT},
     {"Version", PERSISTENT},
-    
+
     // carrot
     {"LongitudinalPersonalityMax", PERSISTENT},
     {"NetworkAddress", CLEAR_ON_MANAGER_START},
-    
+
     {"ApiCache_NavDestinations", PERSISTENT},
     {"NavDestination", CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION},
     {"NavDestinationWaypoints", CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION},
@@ -184,7 +184,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"AutoRoadSpeedAdjust", PERSISTENT},
     {"StopDistanceCarrot", PERSISTENT},
     {"ComfortBrake", PERSISTENT},
-    {"JLeadFactor2", PERSISTENT},
+    {"JLeadFactor3", PERSISTENT},
     {"CruiseButtonMode", PERSISTENT},
     {"CruiseButtonTest1", PERSISTENT},
     {"CruiseButtonTest2", PERSISTENT},
@@ -261,10 +261,8 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"CustomSR", PERSISTENT},
     {"SteerRatioRate", PERSISTENT},
     {"SoftRestartTriggered", CLEAR_ON_MANAGER_START},
-    
-    {"NNFF", PERSISTENT},
-    {"NNFFLite", PERSISTENT},
-    {"NNFFModelName", CLEAR_ON_OFFROAD_TRANSITION},
+
+    {"DevicePosition", CLEAR_ON_MANAGER_START},
     // kans 
     {"TrafficStopDistanceAdjust", PERSISTENT},
     {"PathFactor", PERSISTENT},

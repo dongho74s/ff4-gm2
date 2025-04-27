@@ -311,8 +311,8 @@ protected:
 
     }
     Params  params;
-     std::deque<float> minDeque[3];  // 최소값을 유지하는 덱
-     std::deque<float> maxDeque[3];  // 최대값을 유지하는 덱
+    std::deque<float> minDeque[3];  // 최소값을 유지하는 덱
+    std::deque<float> maxDeque[3];  // 최대값을 유지하는 덱
     void	makePlotData(const UIState* s, float data[], char* title) {
 
         SubMaster& sm = *(s->sm);
@@ -2763,10 +2763,6 @@ public:
         }
         else if (longitudinal_control) {
             carName += " - OP Long";
-        }
-        QString NNFFModelName = QString::fromStdString(params.get("NNFFModelName"));
-        if (NNFFModelName.length() > 0) {
-            carName += ",NNFF";
         }
         sprintf(top_left, "%s", carName.toStdString().c_str());
 

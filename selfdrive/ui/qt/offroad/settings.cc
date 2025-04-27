@@ -282,7 +282,26 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   auto statusCalibBtn = new ButtonControl(tr("Calibration Status"), tr("SHOW"), "");
   connect(statusCalibBtn, &ButtonControl::showDescriptionEvent, this, &DevicePanel::updateCalibDescription);
   addItem(statusCalibBtn);
-  
+
+  std::string calib_bytes = params.get("CalibrationParams");
+  if (!calib_bytes.empty()) {
+    try {
+      AlignedBuffer aligned_buf;
+      capnp::FlatArrayMessageReader cmsg(aligned_buf.align(calib_bytes.data(), calib_bytes.size()));
+      auto calib = cmsg.getRoot<cereal::Event>().getLiveCalibration();
+      if (calib.getCalStatus() != cereal::LiveCalibrationData::Status::UNCALIBRATED) {
+        double pitch = calib.getRpyCalib()[1] * (180 / M_PI);
+        double yaw = calib.getRpyCalib()[2] * (180 / M_PI);
+        QString position = QString("%2 %1° %4 %3°")
+                           .arg(QString::number(std::abs(pitch), 'g', 1), pitch > 0 ? "↓" : "↑",
+                                QString::number(std::abs(yaw), 'g', 1), yaw > 0 ? "←" : "→");
+        params.put("DevicePosition", position.toStdString());
+      }
+    } catch (kj::Exception) {
+      qInfo() << "invalid CalibrationParams";
+    }
+  }
+
   if (Hardware::TICI()) {
     auto regulatoryBtn = new ButtonControl(tr("Regulatory"), tr("VIEW"), "");
     connect(regulatoryBtn, &ButtonControl::clicked, [=]() {
@@ -399,7 +418,7 @@ void SettingsWindow::setCurrentPanel(int index, const QString &param) {
     if (param.endsWith("Panel")) {
       QString panelName = param;
       panelName.chop(5); // Remove "Panel" suffix
-      
+
       // Find the panel by name
       for (int i = 0; i < nav_btns->buttons().size(); i++) {
         if (nav_btns->buttons()[i]->text() == tr(panelName.toStdString().c_str())) {
@@ -411,7 +430,7 @@ void SettingsWindow::setCurrentPanel(int index, const QString &param) {
       emit expandToggleDescription(param);
     }
   }
-  
+
   panel_widget->setCurrentIndex(index);
   nav_btns->buttons()[index]->setChecked(true);
 }
@@ -652,10 +671,10 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   //latLongToggles->addItem(new CValueControl("JerkStartLimit", "LONG: JERK START(10)x0.1", "Starting Jerk.", "../assets/offroad/icon_road.png", 1, 50, 1));
   //latLongToggles->addItem(new CValueControl("LongitudinalTuningApi", "LONG: ControlType", "0:velocity pid, 1:accel pid, 2:accel pid(comma)", "../assets/offroad/icon_road.png", 0, 2, 1));
   latLongToggles->addItem(new CValueControl("LongTuningKpV", "LONG: P Gain(100)", "", "../assets/offroad/icon_logic.png", 0, 150, 5));
-  latLongToggles->addItem(new CValueControl("LongTuningKiV", "LONG: I Gain(200)", "", "../assets/offroad/icon_logic.png", 0, 2000, 5));
+  latLongToggles->addItem(new CValueControl("LongTuningKiV", "LONG: I Gain(0)", "", "../assets/offroad/icon_logic.png", 0, 2000, 5));
   latLongToggles->addItem(new CValueControl("LongTuningKf", "LONG: FF Gain(100)", "", "../assets/offroad/icon_logic.png", 0, 200, 5));
   latLongToggles->addItem(new CValueControl("LongActuatorDelay", "LONG: ActuatorDelay(20)", "", "../assets/offroad/icon_logic.png", 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("LongVelocityControl", "LONG: VelocityControl(0)", "", "../assets/offroad/icon_logic.png", 0, 1, 1));
+  latLongToggles->addItem(new CValueControl("LongVelocityControl", "LONG: VelocityControl(1)", "0:AccelPID, 1:VelocityPID", "../assets/offroad/icon_logic.png", 0, 1, 1));
   latLongToggles->addItem(new CValueControl("VEgoStopping", "LONG: VEgoStopping(50)", "Stopping factor", "../assets/offroad/icon_logic.png", 1, 100, 5));
   latLongToggles->addItem(new CValueControl("RadarReactionFactor", "LONG: Radar reaction factor(10)", "", "../assets/offroad/icon_logic.png", 0, 200, 10));
   //latLongToggles->addItem(new CValueControl("StartAccelApply", "LONG: StartingAccel 2.0x(0)%", "정지->출발시 가속도의 가속율을 지정합니다 0: 사용안함.", "../assets/offroad/icon_road.png", 0, 100, 10));
@@ -664,8 +683,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("StoppingAccel", "LONG: StoppingStartAccelx0.01(-40)", "", "../assets/offroad/icon_logic.png", -100, 0, 5));
   latLongToggles->addItem(new CValueControl("StopDistanceCarrot", "LONG: StopDistance (600)cm", "", "../assets/offroad/icon_logic.png", 300, 1000, 10));
   latLongToggles->addItem(new CValueControl("TrafficStopDistanceAdjust", "LONG: TrafficStopDistance adjust(200)cm", "", "../assets/offroad/icon_logic.png", -1000, 1000, 10));
-  latLongToggles->addItem(new CValueControl("ComfortBrake", "LONG: Comfort Brake (250)", "x0.01", "../assets/offroad/icon_logic.png", 200, 300, 1));
-  latLongToggles->addItem(new CValueControl("JLeadFactor2", "LONG: Jerk Lead Factor (100)", "x0.01", "../assets/offroad/icon_logic.png", 10, 100, 5));
+  latLongToggles->addItem(new CValueControl("JLeadFactor3", "LONG: Jerk Lead Factor (0)", "x0.01", "../assets/offroad/icon_logic.png", 0, 100, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals1", "ACCEL:0km/h(160)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_logic.png", 1, 250, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals2", "ACCEL:40km/h(120)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_logic.png", 1, 250, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals3", "ACCEL:60km/h(100)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_logic.png", 1, 250, 5));
