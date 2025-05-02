@@ -59,7 +59,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     pcmEnable @23;
     pcmDisable @24;
     radarFault @25;
-    radarTempUnavailable @115;
+    radarTempUnavailable @93;
     brakeHold @26;
     parkBrake @27;
     manualRestart @28;
@@ -127,7 +127,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     personalityChanged @91;
     aeb @92;
 
-    softHold @93;
+    softHold @115;
     trafficStopping @94;
     audioPrompt @95;
     audioRefuse @96;
@@ -758,11 +758,11 @@ struct RadarState @0x9a185389d6fdd05f {
   leadOne @3 :LeadData;
   leadTwo @4 :LeadData;
 
-  leadLeft @14 :LeadData;
-  leadRight @15 :LeadData;
-  leadsCenter @16 : List(LeadData);
-  leadsLeft @17 : List(LeadData);
-  leadsRight @18 : List(LeadData);
+  leadLeft @18 :LeadData;
+  leadRight @14 :LeadData;
+  leadsCenter @15 : List(LeadData);
+  leadsLeft @16 : List(LeadData);
+  leadsRight @17 : List(LeadData);
 
   struct LeadData {
     dRel @0 :Float32;
