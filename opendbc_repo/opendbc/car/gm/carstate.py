@@ -214,7 +214,7 @@ class CarState(CarStateBase):
       ("ECMEngineStatus", 100),
       ("PSCMSteeringAngle", 100),
       ("ECMAcceleratorPos", 80),
-      ("TPMS", 10),
+      ("TPMS", 100),
     ]
 
     if CP.transmissionType == TransmissionType.direct:
