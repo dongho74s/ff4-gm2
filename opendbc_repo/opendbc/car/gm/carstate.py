@@ -1,5 +1,5 @@
 import copy
-import time # TPMS checker
+#import time # TPMS checker
 from cereal import car
 from openpilot.common.params import Params #kans
 import numpy as np
@@ -61,7 +61,7 @@ class CarState(CarStateBase):
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
 
-    # TPMS checker
+    """# TPMS checker
     if "TPMS" in pt_cp.vl:
       now = time.monotonic()
       if self.tpms_last_time is not None:
@@ -71,7 +71,7 @@ class CarState(CarStateBase):
         if len(self.tpms_periods) > 100:
           self.tpms_periods.pop(0)
 
-      self.tpms_last_time = now
+      self.tpms_last_time = now """
 
     ret = structs.CarState()
 
@@ -231,7 +231,7 @@ class CarState(CarStateBase):
       ("ECMEngineStatus", 100),
       ("PSCMSteeringAngle", 100),
       ("ECMAcceleratorPos", 80),
-      ("TPMS", 100),
+      ("TPMS", 10),
     ]
 
     if CP.transmissionType == TransmissionType.direct:
