@@ -303,6 +303,7 @@ static safety_config gm_init(uint16_t param) {
     {.msg = {{0xF1, 0, 6, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
     {.msg = {{0x1C4, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
     {.msg = {{0xC9, 0, 8, .ignore_checksum = true, .ignore_counter = true, .frequency = 10U}, { 0 }, { 0 }}},
+    {.msg = {{0x52B, 0, 4, .ignore_checksum = true, .ignore_counter = true, .frequency = 200U}, { 0 }, { 0 }}},  //TPMS
   };
 
   static const CanMsg GM_CAM_TX_MSGS[] = {{0x180, 0, 4}, {0x200, 0, 6}, {0x1E1, 0, 7},  // pt bus
