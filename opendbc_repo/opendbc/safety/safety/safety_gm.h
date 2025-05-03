@@ -91,9 +91,9 @@ static void gm_rx_hook(const CANPacket_t *to_push) {
 
     if (addr == 0xC9) {
       if ((gm_hw == GM_CAM) || (gm_hw == GM_SDGM)) {
-        brake_pressed = GET_BIT(to_push, 40U);  // Bolt,SDGM 브레이크 체크
+        brake_pressed = GET_BIT(to_push, 40U);  // Bolt,SDGM용 브레이크 체크(201핑거 40번째 비트)
       }
-      acc_main_on = GET_BIT(to_push, 29U);  // 크루즈 메인스위치 체크
+      acc_main_on = GET_BIT(to_push, 29U);  // (오토)크루즈 메인스위치 체크(201핑거 29번째 비트)
     }
 
     if (addr == 0x1C4) {
@@ -289,7 +289,7 @@ static safety_config gm_init(uint16_t param) {
   static const CanMsg GM_CAM_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x315, 0, 5}, {0x2CB, 0, 8}, {0x370, 0, 6}, {0x200, 0, 6}, {0x1E1, 0, 7},  // pt bus
                                                {0x315, 2, 5}, {0x184, 2, 8}};  // camera bus
   static const CanMsg GM_SDGM_TX_MSGS[] = {{0x180, 0, 4}, {0x1E1, 0, 7},  // pt bus
-                                           {0x184, 2, 8}, {0x1E1, 2, 7}};  // camera bus
+                                           {0x184, 2, 8}, {0x1E1, 2, 7}};  // add 0x1E1 to camera bus
 
 
   // TODO: do checksum and counter checks. Add correct timestep, 0.1s for now.
@@ -342,10 +342,13 @@ static safety_config gm_init(uint16_t param) {
   if (gm_hw == GM_CAM) {
     if (gm_cc_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CC_LONG_TX_MSGS);
+      print("GM CC Long\n");
     } else if (gm_cam_long) {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_LONG_TX_MSGS);
+      print("GM CAM Long\n");
     } else {
       ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_CAM_TX_MSGS);
+      print("GM CAM\n");
     }
   } else if (gm_hw == GM_SDGM) {
     ret = BUILD_SAFETY_CFG(gm_rx_checks, GM_SDGM_TX_MSGS);

@@ -4,7 +4,7 @@ from enum import Enum, IntFlag
 import numpy as np
 from opendbc.car import Bus, PlatformConfig, DbcDict, Platforms, CarSpecs
 from opendbc.car.structs import CarParams
-from opendbc.car.docs_definitions import CarDocs, CarHarness, CarParts, Column
+from opendbc.car.docs_definitions import CarHarness, CarDocs, CarParts
 from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries
 
 Ecu = CarParams.Ecu
@@ -20,6 +20,7 @@ class CarControllerParams:
   STEER_DRIVER_MULTIPLIER = 4
   STEER_DRIVER_FACTOR = 100
   NEAR_STOP_BRAKE_PHASE = 0.1 #0.5  # m/s
+  SNG_INTERCEPTOR_GAS = 18. / 255.
 
   # Heartbeat for dash "Service Adaptive Cruise" and "Service Front Camera"
   ADAS_KEEPALIVE_STEP = 100
@@ -119,10 +120,24 @@ class GMCarSpecs(CarSpecs):
 @dataclass
 class GMPlatformConfig(PlatformConfig):
   dbc_dict: DbcDict = field(default_factory=lambda: {
-    Bus.pt: 'gm_global_a_powertrain_generated',
+    Bus.pt: 'gm_global_a_powertrain_volt',
     Bus.radar: 'gm_global_a_object',
     Bus.chassis: 'gm_global_a_chassis',
   })
+
+@dataclass
+class GMASCMPlatformConfig(GMPlatformConfig):
+  def init(self):
+    # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
+    #self.car_docs = []
+    pass
+
+@dataclass
+class GMSDGMPlatformConfig(GMPlatformConfig):
+  def init(self):
+    # Don't show in docs until the harness is sold. See https://github.com/commaai/openpilot/issues/32471
+    #self.car_docs = []
+    pass
 
 @dataclass
 class GMCT6PlatformConfig(PlatformConfig):
@@ -132,23 +147,6 @@ class GMCT6PlatformConfig(PlatformConfig):
     Bus.chassis: 'cadillac_ct6_chassis',
   })
 
-@dataclass
-class GMASCMPlatformConfig(PlatformConfig):
-  dbc_dict: DbcDict = field(default_factory=lambda: {
-    Bus.pt: 'gm_global_a_powertrain_volt',
-    Bus.radar: 'gm_global_a_object',
-    Bus.chassis: 'gm_global_a_chassis',
-  })
-
-
-@dataclass
-class GMSDGMPlatformConfig(GMPlatformConfig):
-  def init(self):
-    # Don't show in docs until the harness is sold. See https://github.com/commaai/openpilot/issues/32471
-    #self.car_docs = []
-    pass
-
-
 class CAR(Platforms):
   HOLDEN_ASTRA = GMASCMPlatformConfig(
     [GMCarDocs("Holden Astra 2017")],
@@ -156,7 +154,7 @@ class CAR(Platforms):
   )
   CHEVROLET_VOLT = GMASCMPlatformConfig(
     [GMCarDocs("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ")],
-    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.45, tireStiffnessFactor=0.469, minEnableSpeed=-1),
+    GMCarSpecs(mass=1607, wheelbase=2.69, steerRatio=17.7, centerToFrontRatio=0.55, tireStiffnessFactor=0.469, minEnableSpeed=-1),
   )
   CADILLAC_ATS = GMASCMPlatformConfig(
     [GMCarDocs("Cadillac ATS Premium Performance 2018")],
@@ -238,17 +236,9 @@ class CAR(Platforms):
   )
   # Separate car def is required when there is no ASCM
   # (for now) unless there is a way to detect it when it has been unplugged...
-  # CHEVROLET_VOLT_CC = GMPlatformConfig(  # Unable to discern between this and w/ ACC
-  #   [GMCarDocs("Chevrolet Volt LT 2017-18")],
-  #   CHEVROLET_VOLT.specs,
-  # )
-  CHEVROLET_BOLT_2017 = GMPlatformConfig(
-    [GMCarDocs("Chevrolet Bolt EV 2017")],
-    CHEVROLET_BOLT_EUV.specs,
-  )
-  CHEVROLET_BOLT_2018 = GMPlatformConfig(
-    [GMCarDocs("Chevrolet Bolt EV 2018-21")],
-    CHEVROLET_BOLT_EUV.specs,
+  CHEVROLET_VOLT_CC = GMPlatformConfig(
+    [GMCarDocs("Chevrolet Volt LT 2017-18")],
+    CHEVROLET_VOLT.specs,
   )
   CHEVROLET_BOLT_CC = GMPlatformConfig(
     [

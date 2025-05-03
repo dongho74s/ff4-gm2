@@ -7,8 +7,8 @@ from opendbc.can.parser import CANParser
 from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, GMFlags, SDGM_CAR, ALT_ACCS, \
-  CC_ONLY_CAR, CAMERA_ACC_CAR, CAR
+from opendbc.car.gm.values import DBC, AccState, CruiseButtons, STEER_THRESHOLD, CAR, DBC, GMFlags, SDGM_CAR, ALT_ACCS, \
+  CC_ONLY_CAR, CAMERA_ACC_CAR
 
 ButtonType = structs.CarState.ButtonEvent.Type
 TransmissionType = structs.CarParams.TransmissionType
@@ -173,8 +173,6 @@ class CarState(CarStateBase):
         if self.CP.pcmCruise:
           # openpilot controls nonAdaptive when not pcmCruise
           ret.cruiseState.nonAdaptive = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCCruiseState"] not in (2, 3)
-      else:
-        ret.cruiseState.speed = pt_cp.vl["ECMCruiseControl"]["CruiseSetSpeed"] * CV.KPH_TO_MS
 
       if self.CP.carFingerprint not in (SDGM_CAR, CAR.CHEVROLET_EQUINOX):
         ret.stockAeb = cam_cp.vl["AEBCmd"]["AEBCmdActive"] != 0
@@ -219,10 +217,6 @@ class CarState(CarStateBase):
       ("TPMS", 10),
     ]
 
-    if CP.transmissionType == TransmissionType.direct:
-      pt_messages.append(("EBCMRegenPaddle", 10))
-      pt_messages.append(("EVDriveMode", 0))
-
     if CP.enableBsm:
       pt_messages.append(("BCMBlindSpotMonitor", 10))
 
@@ -238,12 +232,18 @@ class CarState(CarStateBase):
         ("ASCMLKASteeringCmd", 10),
       ]
 
+    if CP.transmissionType == TransmissionType.direct:
+      pt_messages += [
+        ("EBCMRegenPaddle", 50),
+        ("EVDriveMode", 0),
+      ]
+
       if CP.carFingerprint in (ALT_ACCS | CC_ONLY_CAR):
         pt_messages.append(("ECMCruiseControl", 10))
       else:
         cam_messages.append(("ASCMActiveCruiseControlStatus", 25))
 
-      if CP.carFingerprint not in SDGM_CAR:
+      if CP.carFingerprint not in (SDGM_CAR, CAR.CHEVROLET_EQUINOX):
         cam_messages += [
           ("AEBCmd", 10),
         ]
