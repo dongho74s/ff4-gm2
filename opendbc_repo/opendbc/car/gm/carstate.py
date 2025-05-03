@@ -62,12 +62,12 @@ class CarState(CarStateBase):
     loopback_cp = can_parsers[Bus.loopback]
 
     # TPMS checker
-    if pt_cp.updated("TPMS"):
+    if "TPMS" in pt_cp.vl:
       now = time.monotonic()
       if self.tpms_last_time is not None:
         period = now - self.tpms_last_time
         self.tpms_periods.append(period)
-        print(f"[TPMS] Period: {period*1000:.1f} ms ({1.0/period:.2f} Hz)")
+        print(f"[TPMS] Period: {period * 1000:.1f} ms ({1.0 / period:.2f} Hz)")
         if len(self.tpms_periods) > 100:
           self.tpms_periods.pop(0)
 
