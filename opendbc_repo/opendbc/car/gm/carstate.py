@@ -1,4 +1,5 @@
 import copy
+import time # TPMS checker
 from cereal import car
 from openpilot.common.params import Params #kans
 import numpy as np
@@ -42,6 +43,10 @@ class CarState(CarStateBase):
     # cruiseMain default(test from nd0706-vision)
     self.cruiseMain_on = True if Params().get_int("AutoEngage") == 2 else False
 
+    # TPMS checker
+    self.tpms_last_time = None
+    self.tpms_periods = []
+
   def update_button_enable(self, buttonEvents: list[structs.CarState.ButtonEvent]):
     if not self.CP.pcmCruise:
       for b in buttonEvents:
@@ -55,6 +60,18 @@ class CarState(CarStateBase):
     pt_cp = can_parsers[Bus.pt]
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
+
+    # TPMS checker
+    if pt_cp.updated("TPMS"):
+      now = time.monotonic()
+      if self.tpms_last_time is not None:
+        period = now - self.tpms_last_time
+        self.tpms_periods.append(period)
+        print(f"[TPMS] Period: {period*1000:.1f} ms ({1.0/period:.2f} Hz)")
+        if len(self.tpms_periods) > 100:
+          self.tpms_periods.pop(0)
+
+      self.tpms_last_time = now
 
     ret = structs.CarState()
 
