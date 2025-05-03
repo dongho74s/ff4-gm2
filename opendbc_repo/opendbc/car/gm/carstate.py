@@ -217,6 +217,12 @@ class CarState(CarStateBase):
       ("TPMS", 10),
     ]
 
+    if CP.transmissionType == TransmissionType.direct:
+      pt_messages += [
+        ("EBCMRegenPaddle", 50),
+        ("EVDriveMode", 0),
+      ]
+
     if CP.enableBsm:
       pt_messages.append(("BCMBlindSpotMonitor", 10))
 
@@ -230,12 +236,6 @@ class CarState(CarStateBase):
       ]
       cam_messages += [
         ("ASCMLKASteeringCmd", 10),
-      ]
-
-    if CP.transmissionType == TransmissionType.direct:
-      pt_messages += [
-        ("EBCMRegenPaddle", 50),
-        ("EVDriveMode", 0),
       ]
 
       if CP.carFingerprint in (ALT_ACCS | CC_ONLY_CAR):
