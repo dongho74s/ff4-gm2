@@ -94,6 +94,7 @@ class CarController(CarControllerBase):
     self.LFA_trigger = 0
 
     self.activeCarrot = 0
+    self.camera_scc_params = Params().get_int("HyundaiCameraSCC")
 
   def update(self, CC, CS, now_nanos):
 
@@ -120,7 +121,7 @@ class CarController(CarControllerBase):
       self.speed_from_pcm = params.get_int("SpeedFromPCM")
 
       self.canfd_debug = params.get_int("CanfdDebug")
-
+      self.camera_scc_params = params.get_int("HyundaiCameraSCC")
 
     actuators = CC.actuators
     hud_control = CC.hudControl
@@ -151,7 +152,7 @@ class CarController(CarControllerBase):
       else:
         curv = abs(actuators.curvature)
         y_std = actuators.yStd
-        curvature_threshold = np.interp(y_std, [0.0, 0.25], [0.5, 0.006])
+        curvature_threshold = np.interp(y_std, [0.0, 0.15], [0.5, 0.006])
 
         curve_scale = np.clip(curv / curvature_threshold, 0.0, 1.0)
         torque_pts = [
@@ -264,7 +265,7 @@ class CarController(CarControllerBase):
         self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
 
         if True: #not camera_scc:
-          if camera_scc:
+          if self.camera_scc_params == 2:
             self.canfd_toggle_adas(CC, CS)
           can_sends.extend(hyundaicanfd.create_ccnc_messages(self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle, left_lane_warning, right_lane_warning, self.canfd_debug, self.MainMode_ACC_trigger, self.LFA_trigger))
           if hda2:
