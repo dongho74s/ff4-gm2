@@ -1,4 +1,5 @@
 import copy
+import time
 #import time # TPMS checker
 from cereal import car
 from openpilot.common.params import Params #kans
