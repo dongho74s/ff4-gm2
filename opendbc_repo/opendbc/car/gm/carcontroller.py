@@ -169,7 +169,7 @@ class CarController(CarControllerBase):
         
       # Gas/regen, brakes, and UI commands - all at 25Hz
       if self.frame % 4 == 0:
-      # GM: softHold
+        # GM: softHold
         stopping = actuators.longControlState == LongCtrlState.stopping or CS.out.softHoldActive > 0
 
         # Pitch compensated acceleration;
@@ -270,7 +270,7 @@ class CarController(CarControllerBase):
             acc_engaged = CC.enabled
 
           if actuators.longControlState in [LongCtrlState.stopping, LongCtrlState.starting]:
-            if (self.frame - self.last_button_frame) * DT_CTRL > 0.04:
+            if (self.frame - self.last_button_frame) * DT_CTRL > 0.02:
               self.last_button_frame = self.frame
               can_sends.append(gmcan.create_buttons(self.packer_pt, CanBus.POWERTRAIN, (CS.buttons_counter + 1) % 4, CruiseButtons.RES_ACCEL))
           # GasRegenCmdActive needs to be 1 to avoid cruise faults. It describes the ACC state, not actuation

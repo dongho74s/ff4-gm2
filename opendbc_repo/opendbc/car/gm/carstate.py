@@ -62,18 +62,17 @@ class CarState(CarStateBase):
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
 
-    # TPMS checker
-    #if "TPMS" in pt_cp.vl:
-    if "ASCMSteeringButton" in pt_cp.vl:
+    """# TPMS checker
+    if "TPMS" in pt_cp.vl:
       now = time.monotonic()
       if self.tpms_last_time is not None:
         period = now - self.tpms_last_time
         self.tpms_periods.append(period)
-        print(f"[ASCMSteeringButton] Period: {period * 1000:.1f} ms ({1.0 / period:.2f} Hz)")
+        print(f"[TPMS] Period: {period * 1000:.1f} ms ({1.0 / period:.2f} Hz)")
         if len(self.tpms_periods) > 100:
           self.tpms_periods.pop(0)
 
-      self.tpms_last_time = now
+      self.tpms_last_time = now """
 
     ret = structs.CarState()
 
