@@ -16,19 +16,6 @@
     },
     {
       "group": "조향튜닝",
-      "name": "PathFactor",
-      "title": "_PathFactor(95)",
-      "descr": "커브 안쪽으로 돌면 낮게",
-      "egroup": "LAT",
-      "etitle": "_PathFactor(95)",
-      "edescr": "",
-      "min": 70,
-      "max": 150,
-      "default": 95,
-      "unit": 5
-    },
-    {
-      "group": "조향튜닝",
       "name": "LateralTorqueCustom",
       "title": "_LateralTorqueCustom(0)",
       "descr": "0:LiveTorque, 1:CustomTorque",
@@ -108,14 +95,14 @@
     {
       "group": "조향튜닝",
       "name": "LateralTorqueKd",
-      "title": "_LateralTorqueKd*0.01(800)",
+      "title": "_LateralTorqueKd*0.01(0)",
       "descr": "",
       "egroup": "LAT",
-      "etitle": "_LateralTorqueKd*0.01(800)",
+      "etitle": "_LateralTorqueKd*0.01(0)",
       "edescr": "",
       "min": 0,
       "max": 10000,
-      "default": 100,
+      "default": 0,
       "unit": 10
     },
     {
@@ -187,13 +174,13 @@
       "group": "조향튜닝",
       "name": "CustomSteerMax",
       "title": "_CustomSteerMax(0)",
-      "descr": "",
+      "descr": "토크제어: 270,384,409",
       "egroup": "LAT",
       "etitle": "_CustomSteerMax(0)",
       "edescr": "",
       "min": 0,
       "max": 30000,
-      "default": 300,
+      "default": 0,
       "unit": 1
     },
     {
@@ -206,7 +193,7 @@
       "edescr": "",
       "min": 0,
       "max": 50,
-      "default": 6,
+      "default": 0,
       "unit": 1
     },
     {
@@ -219,7 +206,7 @@
       "edescr": "",
       "min": 0,
       "max": 50,
-      "default": 10,
+      "default": 0,
       "unit": 1
     },
     {
@@ -247,6 +234,19 @@
       "max": 100,
       "default": 13,
       "unit": 1
+    },
+    {
+      "group": "조향튜닝",
+      "name": "SteerLagGain",
+      "title": "조향래그게인x0.01(200)",
+      "descr": "레인모드 시험용",
+      "egroup": "LAT",
+      "etitle": "SteerLagGainx0.01(200)",
+      "edescr": "",
+      "min": 1,
+      "max": 300,
+      "default": 200,
+      "unit": 10
     },
     {
       "group": "크루즈",
@@ -421,7 +421,7 @@
       "group": "주행튜닝",
       "name": "LongTuningKpV",
       "title": "Long KpV(100)x0.01",
-      "descr": "HKG: AccelPid:0, GM: VelocityPid:100",
+      "descr": "HKG: AccelPid:0, VelocityPid:100",
       "egroup": "LONG",
       "etitle": "Long KpV(100)x0.01",
       "edescr": "HKG: AccelPid:0, VelocityPid:100",
@@ -1085,12 +1085,12 @@
       "group": "조향일반",
       "name": "LaneChangeNeedTorque",
       "title": "차선변경 조향토크 사용",
-      "descr": "1: 차선변경시 조향토크를 줘야 작동함, 2: 깜박이 차선변경안함.",
+      "descr": "1: 차선변경시 조향토크를 줘야 작동함, 2: 깜박이 차선변경안함, 3: BSD무시함, 4:토크우선",
       "egroup": "LAT",
       "etitle": "LaneChange use steering torque",
-      "edescr": "1: need torque, 2:no lanechange",
+      "edescr": "1: need torque, 2:no lanechange, 3:ignore BSD, 4:torque always",
       "min": 0,
-      "max": 2,
+      "max": 4,
       "default": 0,
       "unit": 1
     },

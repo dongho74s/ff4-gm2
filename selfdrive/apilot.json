@@ -2,32 +2,6 @@
   "apilot": 20220111,
   "params": [
     {
-      "group": "Á¶ÇâÀÏ¹Ý",
-      "name": "PathOffset",
-      "title": "Â÷¼±Ä¡¿ìÄ§ ÁÂ¿ìº¸Á¤(0)",
-      "descr": "(-)ÁÂÃø,(+)¿ìÃø",
-      "egroup": "LAT",
-      "etitle": "PathOffset (0)",
-      "edescr": "(-)Left,(+)Right",
-      "min": -150,
-      "max": 150,
-      "default": 0,
-      "unit": 1
-    },
-    {
-      "group": "Á¶ÇâÆ©´×",
-      "name": "PathFactor",
-      "title": "_PathFactor(95)",
-      "descr": "Ä¿ºê ¾ÈÂÊÀ¸·Î µ¹¸é ³·°Ô",
-      "egroup": "LAT",
-      "etitle": "_PathFactor(95)",
-      "edescr": "",
-      "min": 70,
-      "max": 150,
-      "default": 95,
-      "unit": 5
-    },
-    {
       "group": "Á¶ÇâÆ©´×",
       "name": "LateralTorqueCustom",
       "title": "_LateralTorqueCustom(0)",
@@ -143,19 +117,6 @@
       "max": 1000,
       "default": 1,
       "unit": 100
-    },
-    {
-      "group": "Á¶ÇâÆ©´×",
-      "name": "DampingFactor",
-      "title": "Á¶Çâ´ïÇÎÆÑÅÍ(25)",
-      "descr": "",
-      "egroup": "LAT",
-      "etitle": "DampingFactor(25)",
-      "edescr": "",
-      "min": -10000,
-      "max": 10000,
-      "default": 1,
-      "unit": 10
     },
     {
       "group": "Á¶ÇâÆ©´×",

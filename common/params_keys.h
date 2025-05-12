@@ -196,6 +196,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"TrafficLightDetectMode", PERSISTENT},
     {"SteerActuatorDelay", PERSISTENT},
     {"SteerSmoothSec", PERSISTENT},
+    {"SteerLagGain", PERSISTENT },
     {"CruiseOnDist", PERSISTENT},
     {"CruiseMaxVals1", PERSISTENT},
     {"CruiseMaxVals2", PERSISTENT},
@@ -265,5 +266,4 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"DevicePosition", CLEAR_ON_MANAGER_START},
     // kans 
     {"TrafficStopDistanceAdjust", PERSISTENT},
-    {"PathFactor", PERSISTENT},
 };
