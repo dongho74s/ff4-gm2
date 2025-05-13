@@ -10,6 +10,7 @@ from opendbc.car.gm.values import DBC, CanBus, CarControllerParams, CruiseButton
 from opendbc.car.interfaces import CarControllerBase
 from openpilot.selfdrive.controls.lib.drive_helpers import apply_deadzone
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
+from openpilot.selfdrive.car.cruise import VCruiseCarrot
 
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
 NetworkLocation = structs.CarParams.NetworkLocation
@@ -64,6 +65,8 @@ class CarController(CarControllerBase):
     self.accel_g = 0.0
     # GM: AutoResume
     self.activateCruise_after_brake = False
+    self.v_cruise_carrot = VCruiseCarrot(self.CP)
+
   @staticmethod
   def calc_pedal_command(accel: float, long_active: bool, car_velocity) -> tuple[float, bool]:
     if not long_active: return 0., False
@@ -166,6 +169,13 @@ class CarController(CarControllerBase):
             can_sends.append(gmcan.create_brake_command(self.packer_ch, CanBus.CHASSIS, apply_brake, idx))
             Params().put_bool_nonblocking("ActivateCruiseAfterBrake", True) # cruise.py에 브레이크 ON신호 전달
             self.activateCruise_after_brake = True # 브레이크신호는 한번만 보내고 초기화
+      else:
+        auto_cruise_control = self.v_cruise_carrot.autoCruiseControl
+        if (CS.out.activateCruise or auto_cruise_control > 0) and \
+           not CS.out.cruiseState.enabled:
+          if (self.frame - self.last_button_frame) * DT_CTRL > 0.04:
+            self.last_button_frame = self.frame
+            can_sends.append(gmcan.create_buttons(self.packer_pt, CanBus.POWERTRAIN, (CS.buttons_counter + 1) % 4, CruiseButtons.DECEL_SET))
         
       # Gas/regen, brakes, and UI commands - all at 25Hz
       if self.frame % 4 == 0:
@@ -237,8 +247,6 @@ class CarController(CarControllerBase):
 
         idx = (self.frame // 4) % 4
 
-        at_full_stop = CC.longActive and CS.out.standstill
-        near_stop = CC.longActive and (abs(CS.out.vEgo) < self.params.NEAR_STOP_BRAKE_PHASE)
         if self.CP.flags & GMFlags.CC_LONG.value:
           if CC.longActive and CS.out.vEgo > self.CP.minEnableSpeed:
             # Using extend instead of append since the message is only sent intermittently

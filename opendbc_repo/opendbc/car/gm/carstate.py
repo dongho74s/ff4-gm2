@@ -1,6 +1,5 @@
 import copy
-import time
-#import time # TPMS checker
+import time # DBC signal checker
 from cereal import car
 from openpilot.common.params import Params #kans
 import numpy as np
@@ -44,9 +43,9 @@ class CarState(CarStateBase):
     # cruiseMain default(test from nd0706-vision)
     self.cruiseMain_on = True if Params().get_int("AutoEngage") == 2 else False
 
-    # TPMS checker
-    self.tpms_last_time = None
-    self.tpms_periods = []
+    # DBC signal checker
+    self.signal_last_time = None
+    self.signal_periods = []
 
   def update_button_enable(self, buttonEvents: list[structs.CarState.ButtonEvent]):
     if not self.CP.pcmCruise:
@@ -62,15 +61,15 @@ class CarState(CarStateBase):
     cam_cp = can_parsers[Bus.cam]
     loopback_cp = can_parsers[Bus.loopback]
 
-    """# TPMS checker
+    """# DBC signal checker
     if "TPMS" in pt_cp.vl:
       now = time.monotonic()
-      if self.tpms_last_time is not None:
-        period = now - self.tpms_last_time
-        self.tpms_periods.append(period)
-        print(f"[TPMS] Period: {period * 1000:.1f} ms ({1.0 / period:.2f} Hz)")
-        if len(self.tpms_periods) > 100:
-          self.tpms_periods.pop(0)
+      if self.signal_last_time is not None:
+        period = now - self.signal_last_time
+        self.signal_periods.append(period)
+        print(f"[TPMS &etc] Period: {period * 1000:.1f} ms ({1.0 / period:.2f} Hz)")
+        if len(self.signal_periods) > 100:
+          self.signal_periods.pop(0)
 
       self.tpms_last_time = now """
 
@@ -134,10 +133,10 @@ class CarState(CarStateBase):
       ret.regenBraking = pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"] != 0
       self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
 
-    ret.tpms.fr = pt_cp.vl["TPMS"]["PRESSURE_FR"]
-    ret.tpms.fl = pt_cp.vl["TPMS"]["PRESSURE_FL"]
-    ret.tpms.rl = pt_cp.vl["TPMS"]["PRESSURE_RL"]
     ret.tpms.rr = pt_cp.vl["TPMS"]["PRESSURE_RR"]
+    ret.tpms.rl = pt_cp.vl["TPMS"]["PRESSURE_RL"]
+    ret.tpms.fl = pt_cp.vl["TPMS"]["PRESSURE_FL"]
+    ret.tpms.fr = pt_cp.vl["TPMS"]["PRESSURE_FR"]
 
     if self.CP.enableGasInterceptorDEPRECATED:
       ret.gas = (pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS"] + pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS2"]) / 2.
@@ -235,17 +234,19 @@ class CarState(CarStateBase):
       ("TPMS", 5),
     ]
 
+    if CP.enableBsm:
+      pt_messages.append(("BCMBlindSpotMonitor", 10))
+
     if CP.transmissionType == TransmissionType.direct:
       pt_messages += [
         ("EBCMRegenPaddle", 50),
         ("EVDriveMode", 0),
       ]
 
-    if CP.enableBsm:
-      pt_messages.append(("BCMBlindSpotMonitor", 10))
-
     if CP.enableGasInterceptorDEPRECATED:
-      pt_messages.append(("GAS_SENSOR", 50))
+      pt_messages += [
+        ("GAS_SENSOR", 50),
+      ]
 
     cam_messages = []
     if CP.networkLocation == NetworkLocation.fwdCamera:
