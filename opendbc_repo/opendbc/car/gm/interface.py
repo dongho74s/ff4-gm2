@@ -375,7 +375,7 @@ class CarInterface(CarInterfaceBase):
       ret.flags |= GMFlags.NO_ACCELERATOR_POS_MSG.value
 
     # kans: TPMS
-    if TPMS_MSG not in fingerprint[CanBus.POWERTRAIN]:
-      ret.flags |= GMFlags.NO_TPMS_MSG.value
+    if TPMS_MSG in fingerprint[CanBus.POWERTRAIN]:
+      ret.flags |= GMFlags.TPMS_MSG.value
 
     return ret
