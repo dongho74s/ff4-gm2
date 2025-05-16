@@ -134,7 +134,7 @@ class CarState(CarStateBase):
       self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
 
     # kans: TPMS
-    if CP.flags & GMFlags.NO_TPMS_MSG.value:
+    if self.CP.flags & GMFlags.NO_TPMS_MSG.value:
       ret.tpms.rr = pt_cp.vl["TPMS"]["PRESSURE_RR"]
       ret.tpms.rl = pt_cp.vl["TPMS"]["PRESSURE_RL"]
       ret.tpms.fl = pt_cp.vl["TPMS"]["PRESSURE_FL"]
