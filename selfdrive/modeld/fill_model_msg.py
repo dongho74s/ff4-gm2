@@ -54,37 +54,53 @@ def fill_lane_line_meta(builder, lane_lines, lane_line_probs):
   builder.rightY = lane_lines[2].y[0]
   builder.rightProb = lane_line_probs[2]
 
-def fill_model_msg(msg: capnp._DynamicStructBuilder, net_output_data: dict[str, np.ndarray],  action: log.ModelDataV2.Action, 
+def fill_model_msg(base_msg: capnp._DynamicStructBuilder, extended_msg: capnp._DynamicStructBuilder, net_output_data: dict[str, np.ndarray],  action: log.ModelDataV2.Action, 
                    publish_state: PublishState,
                    vipc_frame_id: int, vipc_frame_id_extra: int, frame_id: int, frame_drop: float,
                    timestamp_eof: int, timestamp_llk: int, model_execution_time: float,
                    nav_enabled: bool, valid: bool) -> None:
   frame_age = frame_id - vipc_frame_id if frame_id > vipc_frame_id else 0
-  msg.valid = valid
+  frame_drop_perc = frame_drop * 100
+  extended_msg.valid = valid
+  base_msg.valid = valid
 
-  modelV2 = msg.modelV2
+  driving_model_data = base_msg.drivingModelData
+
+  driving_model_data.frameId = vipc_frame_id
+  driving_model_data.frameIdExtra = vipc_frame_id_extra
+  driving_model_data.frameDropPerc = frame_drop_perc
+  driving_model_data.modelExecutionTime = model_execution_time
+
+  driving_model_data.action = action
+
+  modelV2 = extended_msg.modelV2
   modelV2.frameId = vipc_frame_id
   modelV2.frameIdExtra = vipc_frame_id_extra
   modelV2.frameAge = frame_age
-  modelV2.frameDropPerc = frame_drop * 100
+  modelV2.frameDropPerc = frame_drop_perc
   modelV2.timestampEof = timestamp_eof
   #modelV2.locationMonoTime = timestamp_llk
   modelV2.modelExecutionTime = model_execution_time
   modelV2.navEnabled = nav_enabled
 
   # plan
-  position = modelV2.position
-  fill_xyzt(position, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.POSITION].T, *net_output_data['plan_stds'][0,:,Plan.POSITION].T)
-  velocity = modelV2.velocity
-  fill_xyzt(velocity, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.VELOCITY].T)
-  acceleration = modelV2.acceleration
-  fill_xyzt(acceleration, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.ACCELERATION].T)
-  orientation = modelV2.orientation
-  fill_xyzt(orientation, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.T_FROM_CURRENT_EULER].T)
-  orientation_rate = modelV2.orientationRate
-  fill_xyzt(orientation_rate, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.ORIENTATION_RATE].T)
+  fill_xyzt(modelV2.position, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.POSITION].T, *net_output_data['plan_stds'][0,:,Plan.POSITION].T)
+  fill_xyzt(modelV2.velocity, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.VELOCITY].T)
+  fill_xyzt(modelV2.acceleration, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.ACCELERATION].T)
+  fill_xyzt(modelV2.orientation, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.T_FROM_CURRENT_EULER].T)
+  fill_xyzt(modelV2.orientationRate, ModelConstants.T_IDXS, *net_output_data['plan'][0,:,Plan.ORIENTATION_RATE].T)
 
+
+  # poly path
+  fill_xyz_poly(driving_model_data.path, ModelConstants.POLY_PATH_DEGREE, *net_output_data['plan'][0,:,Plan.POSITION].T)
+  
   # lateral planning
+  solution = modelV2.lateralPlannerSolution
+  solution.x, solution.y, solution.yaw, solution.yawRate = [net_output_data['lat_planner_solution'][0,:,i].tolist() for i in range(4)]
+  solution.xStd, solution.yStd, solution.yawStd, solution.yawRateStd = [net_output_data['lat_planner_solution_stds'][0,:,i].tolist() for i in range(4)]
+  
+
+  # action
   modelV2.action = action
   #action = modelV2.action
   #action.desiredCurvature = float(net_output_data['desired_curvature'][0,0])

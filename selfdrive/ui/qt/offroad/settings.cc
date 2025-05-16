@@ -242,6 +242,18 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
     }
     });
 
+  QPushButton* remove_mapbox_key_btn = new QPushButton(tr("Remove MapboxKey"));
+  remove_mapbox_key_btn->setObjectName("remove_mapbox_key_btn");
+  init_layout->addWidget(remove_mapbox_key_btn);
+  QObject::connect(remove_mapbox_key_btn, &QPushButton::clicked, [&]() {
+    if (ConfirmationDialog::confirm(tr("Remove Mapbox key?"), tr("Yes"), this)) {
+      QTimer::singleShot(1000, []() {
+        Params().put("MapboxPublicKey", "");
+        Params().put("MapboxSecretKey", "");
+        });
+    }
+    });
+
   setStyleSheet(R"(
     #reboot_btn { height: 120px; border-radius: 15px; background-color: #2CE22C; }
     #reboot_btn:pressed { background-color: #24FF24; }
@@ -253,6 +265,8 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
     #init_btn:pressed { background-color: #2424FF; }
     #default_btn { height: 120px; border-radius: 15px; background-color: #BDBDBD; }
     #default_btn:pressed { background-color: #A9A9A9; }
+    #remove_mapbox_key_btn { height: 120px; border-radius: 15px; background-color: #BDBDBD; }
+    #remove_mapbox_key_btn:pressed { background-color: #A9A9A9; }
   )");
   addItem(init_layout);
 
@@ -785,7 +799,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   });
 
   startToggles->addItem(selectCarBtn);
-  startToggles->addItem(new CValueControl("HyundaiCameraSCC", "HYUNDAI: CAMERA SCC", "1:Connect the SCC's CAN line to CAM, 2:Sync Cruise state", "../assets/offroad/icon_shell.png", 0, 2, 1));
+  startToggles->addItem(new CValueControl("HyundaiCameraSCC", "HYUNDAI: CAMERA SCC", "1:Connect the SCC's CAN line to CAM, 2:Sync Cruise state, 3:StockLong", "../assets/offroad/icon_shell.png", 0, 3, 1));
   startToggles->addItem(new CValueControl("EnableRadarTracks", "Enable Radar Track", "1:Enable RadarTrack, -1,2:Disable use HKG SCC radar at all times", "../assets/offroad/icon_shell.png", -1, 2, 1));
   startToggles->addItem(new CValueControl("CanfdHDA2", "CANFD: HDA2 mode", "1:HDA2,2:HDA2+BSM", "../assets/offroad/icon_shell.png", 0, 2, 1));
   startToggles->addItem(new CValueControl("AutoCruiseControl", "Auto Cruise control", "Softhold, Auto Cruise ON/OFF control", "../assets/offroad/icon_road.png", 0, 3, 1));

@@ -48,7 +48,7 @@ def get_action_from_model(model_output: dict[str, np.ndarray], prev_action: log.
                                                      action_t=long_action_t)
     desired_accel = smooth_value(desired_accel, prev_action.desiredAcceleration, LONG_SMOOTH_SECONDS)
 
-    desired_curvature = model_output['desired_curvature'][0, 0]
+    desired_curvature = 0.0 #model_output['desired_curvature'][0, 0]
     desired_curvature = smooth_value(desired_curvature, prev_action.desiredCurvature, lat_smooth_seconds)
 
     return log.ModelDataV2.Action(desiredCurvature=float(desired_curvature),
@@ -79,8 +79,7 @@ class ModelState:
     self.inputs = {
       'desire': np.zeros(ModelConstants.DESIRE_LEN * (ModelConstants.HISTORY_BUFFER_LEN+1), dtype=np.float32),
       'traffic_convention': np.zeros(ModelConstants.TRAFFIC_CONVENTION_LEN, dtype=np.float32),
-      'lateral_control_params': np.zeros(ModelConstants.LATERAL_CONTROL_PARAMS_LEN, dtype=np.float32),
-      'prev_desired_curv': np.zeros(ModelConstants.PREV_DESIRED_CURV_LEN * (ModelConstants.HISTORY_BUFFER_LEN+1), dtype=np.float32),
+      'lat_planner_state': np.zeros(ModelConstants.LAT_PLANNER_STATE_LEN, dtype=np.float32),
       'nav_features': np.zeros(ModelConstants.NAV_FEATURE_LEN, dtype=np.float32),
       'nav_instructions': np.zeros(ModelConstants.NAV_INSTRUCTION_LEN, dtype=np.float32),
       'features_buffer': np.zeros(ModelConstants.HISTORY_BUFFER_LEN * ModelConstants.FEATURE_LEN, dtype=np.float32),
@@ -115,7 +114,6 @@ class ModelState:
     self.prev_desire[:] = inputs['desire']
 
     self.inputs['traffic_convention'][:] = inputs['traffic_convention']
-    self.inputs['lateral_control_params'][:] = inputs['lateral_control_params']
     self.inputs['nav_features'][:] = inputs['nav_features']
     self.inputs['nav_instructions'][:] = inputs['nav_instructions']
 
@@ -130,8 +128,8 @@ class ModelState:
 
     self.inputs['features_buffer'][:-ModelConstants.FEATURE_LEN] = self.inputs['features_buffer'][ModelConstants.FEATURE_LEN:]
     self.inputs['features_buffer'][-ModelConstants.FEATURE_LEN:] = outputs['hidden_state'][0, :]
-    self.inputs['prev_desired_curv'][:-ModelConstants.PREV_DESIRED_CURV_LEN] = self.inputs['prev_desired_curv'][ModelConstants.PREV_DESIRED_CURV_LEN:]
-    self.inputs['prev_desired_curv'][-ModelConstants.PREV_DESIRED_CURV_LEN:] = outputs['desired_curvature'][0, :]
+    self.inputs['lat_planner_state'][2] = np.interp(DT_MDL, ModelConstants.T_IDXS, outputs['lat_planner_solution'][0, :, 2])
+    self.inputs['lat_planner_state'][3] = np.interp(DT_MDL, ModelConstants.T_IDXS, outputs['lat_planner_solution'][0, :, 3])
     return outputs
 
 
@@ -173,7 +171,7 @@ def main(demo=False):
     cloudlog.warning(f"connected extra cam with buffer size: {vipc_client_extra.buffer_len} ({vipc_client_extra.width} x {vipc_client_extra.height})")
 
   # messaging
-  pm = PubMaster(["modelV2", "cameraOdometry"])
+  pm = PubMaster(["modelV2", "drivingModelData", "cameraOdometry"])
   sm = SubMaster(["deviceState", "carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "carControl", "liveDelay", "carrotMan", "radarState", "navModel", "navInstruction", "navInstructionCarrot"])
 
   publish_state = PublishState()
@@ -317,7 +315,7 @@ def main(demo=False):
     inputs:dict[str, np.ndarray] = {
       'desire': vec_desire,
       'traffic_convention': traffic_convention,
-      'lateral_control_params': lateral_control_params,
+      'driving_style': driving_style,
       'nav_features': nav_features,
       'nav_instructions': nav_instructions}
 
@@ -328,11 +326,12 @@ def main(demo=False):
 
     if model_output is not None:
       modelv2_send = messaging.new_message('modelV2')
+      drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
 
       action = get_action_from_model(model_output, prev_action, lat_delay + DT_MDL, long_delay + DT_MDL, lat_smooth_seconds)
       prev_action = action
-      fill_model_msg(modelv2_send, model_output, action, 
+      fill_model_msg(drivingdata_send, modelv2_send, model_output, action, 
                       publish_state, meta_main.frame_id, meta_extra.frame_id, frame_id, 
                       frame_drop_ratio, meta_main.timestamp_eof, timestamp_llk, model_execution_time, nav_enabled, live_calib_seen)
 
@@ -345,8 +344,8 @@ def main(demo=False):
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
       modelv2_send.modelV2.meta.desireLog = DH.desireLog #carrot
-      #drivingdata_send.drivingModelData.meta.laneChangeState = DH.lane_change_state
-      #drivingdata_send.drivingModelData.meta.laneChangeDirection = DH.lane_change_direction
+      drivingdata_send.drivingModelData.meta.laneChangeState = DH.lane_change_state
+      drivingdata_send.drivingModelData.meta.laneChangeDirection = DH.lane_change_direction
 
       modelv2_send.modelV2.meta.laneWidthLeft = float(DH.lane_width_left)
       modelv2_send.modelV2.meta.laneWidthRight = float(DH.lane_width_right)
@@ -357,6 +356,7 @@ def main(demo=False):
 
       fill_pose_msg(posenet_send, model_output, meta_main.frame_id, vipc_dropped_frames, meta_main.timestamp_eof, live_calib_seen)
       pm.send('modelV2', modelv2_send)
+      pm.send('drivingModelData', drivingdata_send)
       pm.send('cameraOdometry', posenet_send)
 
     last_vipc_frame_id = meta_main.frame_id
