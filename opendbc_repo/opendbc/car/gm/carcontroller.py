@@ -6,7 +6,7 @@ from opendbc.can.packer import CANPacker
 from opendbc.car import Bus, DT_CTRL, apply_driver_steer_torque_limits, structs, create_gas_interceptor_command
 from opendbc.car.gm import gmcan
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.gm.values import DBC, CanBus, CarControllerParams, CruiseButtons, GMFlags, CC_ONLY_CAR, EV_CAR, AccState, CC_REGEN_PADDLE_CAR, CAR
+from opendbc.car.gm.values import DBC, CanBus, CarControllerParams, CruiseButtons, GMFlags, CC_ONLY_CAR, EV_CAR, AccState, CC_REGEN_PADDLE_CAR, CAR, CAMERA_ACC_CAR
 from opendbc.car.interfaces import CarControllerBase
 from openpilot.selfdrive.controls.lib.drive_helpers import apply_deadzone
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
@@ -143,7 +143,7 @@ class CarController(CarControllerBase):
 
     if self.CP.openpilotLongitudinalControl:
 
-      if self.CP.carFingerprint in (CAR.CHEVROLET_VOLT):
+      if self.CP.carFingerprint in (CAR.CHEVROLET_VOLT, CAMERA_ACC_CAR):
         button_counter = (CS.buttons_counter + 1) % 4
         # Auto Cruise
         if CS.out.activateCruise and not CS.out.cruiseState.enabled:
@@ -163,9 +163,8 @@ class CarController(CarControllerBase):
             Params().put_bool_nonblocking("ActivateCruiseAfterBrake", True) # cruise.py에 브레이크 ON신호 전달
             self.activateCruise_after_brake = True # 브레이크신호는 한번만 보내고 초기화
       else:
-        auto_cruise_control = self.v_cruise_carrot.autoCruiseControl
-        if (CS.out.activateCruise or auto_cruise_control > 0) and \
-           not CS.out.cruiseState.enabled:
+        #auto_cruise_control = self.v_cruise_carrot.autoCruiseControl
+        if CS.out.activateCruise and not CS.out.cruiseState.enabled:
           if (self.frame - self.last_button_frame) * DT_CTRL > 0.04:
             self.last_button_frame = self.frame
             can_sends.append(gmcan.create_buttons(self.packer_pt, CanBus.POWERTRAIN, (CS.buttons_counter + 1) % 4, CruiseButtons.DECEL_SET))
