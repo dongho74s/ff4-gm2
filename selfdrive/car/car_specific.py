@@ -48,6 +48,7 @@ class CarSpecificEvents:
     self.frame = 0
     self.mute_door = False
     self.mute_seatbelt = False
+    self.vCruise_prev = 250
 
   def update_params(self):
     if self.frame % 100 == 0:
@@ -169,6 +170,12 @@ class CarSpecificEvents:
 
     else:
       events = self.create_common_events(CS, CS_prev)
+
+    if CC.enabled:
+      if self.vCruise_prev == 0 and CS.vCruise > 0:
+        events.add(EventName.audioPrompt)
+
+    self.vCruise_prev = CS.vCruise
 
     return events
 
