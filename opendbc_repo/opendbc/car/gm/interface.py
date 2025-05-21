@@ -128,8 +128,8 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kpV = [1.0]
       ret.longitudinalTuning.kiV = [1.0]
       ret.stoppingDecelRate = 2.0  # reach brake quickly after enabling
-      ret.vEgoStopping = 0.25
-      ret.vEgoStarting = 0.25
+      ret.vEgoStopping = 0.2
+      ret.vEgoStarting = 0.15
       ret.stopAccel = -0.4
       ret.startingState = True
       ret.startAccel = 1.5
@@ -181,11 +181,11 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalTuning.kiV = [.35]
       ret.longitudinalTuning.kf = 1.0
       ret.stoppingDecelRate = 0.2 # brake_travel/s while trying to stop
-      ret.vEgoStopping = 0.1
-      ret.vEgoStarting = 0.05
-      ret.stopAccel = -0.5
+      ret.vEgoStopping = 0.15
+      ret.vEgoStarting = 0.1
+      ret.stopAccel = -0.7
       ret.startingState = True
-      ret.startAccel = 1.9
+      ret.startAccel = 2.0
 
       # softer long tune for ev table
       if useEVTables:
@@ -195,8 +195,8 @@ class CarInterface(CarInterfaceBase):
         ret.longitudinalTuning.kiV = [.35]
         ret.longitudinalTuning.kf = 1.0
         ret.stoppingDecelRate = 1.0 # brake_travel/s while trying to stop
-        ret.stopAccel = -0.5
-        ret.startAccel = 0.6
+        ret.stopAccel = -0.7
+        ret.startAccel = 1.9
 
       useTorque = Params().get_bool("LateralTorqueCustom")
       if useTorque:
