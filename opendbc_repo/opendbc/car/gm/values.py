@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
 import numpy as np
@@ -128,17 +128,31 @@ class GMPlatformConfig(PlatformConfig):
 
 @dataclass
 class GMASCMPlatformConfig(GMPlatformConfig):
-  def init(self):
-    # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
-    #self.car_docs = []
-    pass
+  # car_docs, specs, dbc_dict 는 부모에서 정의된 대로 유지
+  def __post_init__(self):
+    # super.__post_init__ 이 있다면 호출
+    try:
+      super().__post_init__()
+    except AttributeError:
+      pass
+
+    # ASCM 전용 dbc_dict 로 덮어쓰기
+    pt_dbc = 'gm_global_a_powertrain_volt'
+    self.dbc_dict = {
+      Bus.pt: pt_dbc,
+      Bus.radar: 'gm_global_a_object',
+      Bus.chassis: 'gm_global_a_chassis',
+    }
+
 
 @dataclass
 class GMSDGMPlatformConfig(GMPlatformConfig):
-  def init(self):
-    # Don't show in docs until the harness is sold. See https://github.com/commaai/openpilot/issues/32471
-    #self.car_docs = []
-    pass
+  def __post_init__(self):
+    # 부모 플랫폼 설정 먼저 수행
+    try:
+      super().__post_init__()
+    except AttributeError:
+      pass
 
 
 class CAR(Platforms):
