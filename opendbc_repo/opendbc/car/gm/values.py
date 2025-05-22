@@ -104,11 +104,27 @@ class GMCarSpecs(CarSpecs):
 
 @dataclass
 class GMPlatformConfig(PlatformConfig):
-  dbc_dict: DbcDict = field(default_factory=lambda: {
-    Bus.pt: 'gm_global_a_powertrain_volt',
-    Bus.radar: 'gm_global_a_object',
-    Bus.chassis: 'gm_global_a_chassis',
-  })
+  def __init__(self, CP: CarParams):
+    specs = CP.specs
+    car_docs = CP.car_docs
+
+    if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR):
+      pt_dbc = 'gm_global_a_powertrain_cam_acc'
+    elif CP.carFingerprint in CHEVROLET_VOLT:
+      pt_dbc = 'gm_global_a_powertrain_volt'
+    else:
+      pt_dbc = 'gm_global_a_powertrain_generated'
+
+    super().__init__(
+      car_docs=car_docs,
+      specs=specs,
+      dbc_dict={
+        Bus.pt: pt_dbc,
+        Bus.radar: 'gm_global_a_object',
+        Bus.chassis: 'gm_global_a_chassis'
+      }
+    )
+
 
 @dataclass
 class GMASCMPlatformConfig(GMPlatformConfig):

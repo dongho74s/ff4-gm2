@@ -69,28 +69,48 @@ def create_adas_keepalive(bus):
 
 
 def create_gas_regen_command(packer, bus, throttle, idx, enabled, at_full_stop):
-  values = {
-    "GasRegenCmdActive": enabled,
-    "RollingCounter": idx,
-    "GasRegenCmd": throttle,
-    "GasRegenFullStopActive": at_full_stop,
-    "GasRegenAccType": 1,
-  }
+  if CP.carFingerprint in (CAR.CHEVROLET_VOLT):
+    values = {
+      "GasRegenCmdActive": enabled,
+      "RollingCounter": idx,
+      "GasRegenCmdActiveInv": 1 - enabled,
+      "GasRegenCmd": throttle,
+      "GasRegenFullStopActive": at_full_stop,
+      "GasRegenAlwaysOne": 1,
+      "GasRegenAlwaysOne2": 1,
+      "GasRegenAlwaysOne3": 1,
+    }
 
-  dat = packer.make_can_msg("ASCMGasRegenCmd", bus, values)[1]
-  values["GasRegenChecksum"] = ((1 - enabled) << 24) | \
-                               (((0xff - dat[1]) & 0xff) << 16) | \
-                               (((0xff - dat[2]) & 0xff) << 8) | \
-                               ((0x100 - dat[3] - idx) & 0xff)
+    dat = packer.make_can_msg("ASCMGasRegenCmd", bus, values)[1]
+    values["GasRegenChecksum"] = (((0xff - dat[1]) & 0xff) << 16) | \
+                                 (((0xff - dat[2]) & 0xff) << 8) | \
+                                 ((0x100 - dat[3] - idx) & 0xff)
+
+  else:
+    # CAMERA_ACC_CAR
+    values = {
+      "GasRegenCmdActive": enabled,
+      "RollingCounter": idx,
+      "GasRegenCmd": throttle,
+      "GasRegenFullStopActive": at_full_stop,
+      "GasRegenAccType": 1,
+    }
+
+    dat = packer.make_can_msg("ASCMGasRegenCmd", bus, values)[1]
+    values["GasRegenChecksum"] = ((1 - enabled) << 24) | \
+                                 (((0xff - dat[1]) & 0xff) << 16) | \
+                                 (((0xff - dat[2]) & 0xff) << 8) | \
+                                 ((0x100 - dat[3] - idx) & 0xff)
 
   return packer.make_can_msg("ASCMGasRegenCmd", bus, values)
+
 
 
 def create_friction_brake_command(packer, bus, apply_brake, idx, enabled, near_stop, at_full_stop, CP):
   mode = 0x1
 
   # TODO: Understand this better. Volts and ICE Camera ACC cars are 0x1 when enabled with no brake
-  if enabled and CP.carFingerprint in (CAR.CHEVROLET_BOLT_EUV,):
+  if enabled and CP.carFingerprint in (CAR.CHEVROLET_BOLT_EUV):
     mode = 0x9
 
   if apply_brake > 0:
