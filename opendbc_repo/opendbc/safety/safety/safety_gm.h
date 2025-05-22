@@ -184,7 +184,8 @@ static bool gm_tx_hook(const CANPacket_t *to_send) {
         if(!controls_allowed) print("@@auto cruise control enabled....\n");
         controls_allowed = true;        
     }
-    int gas_regen = ((GET_BYTE(to_send, 2) & 0x7FU) << 5) + ((GET_BYTE(to_send, 3) & 0xF8U) >> 3);
+    // convert float CAN signal to an int for gas checks: 22534 / 0.125 = 180272
+    int gas_regen = (((GET_BYTE(to_send, 1) & 0x7U) << 16) | (GET_BYTE(to_send, 2) << 8) | GET_BYTE(to_send, 3)) - 180272U;
 
     bool violation = false;
     // Allow apply bit in pre-enabled and overriding states
