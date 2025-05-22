@@ -104,55 +104,37 @@ class GMCarSpecs(CarSpecs):
 
 @dataclass
 class GMPlatformConfig(PlatformConfig):
-  def __init__(self, CP: CarParams):
-    specs = CP.specs
-    car_docs = CP.car_docs
+  dbc_dict: DbcDict = field(default_factory=lambda: {
+    Bus.pt: 'gm_global_a_powertrain_volt',
+    Bus.radar: 'gm_global_a_object',
+    Bus.chassis: 'gm_global_a_chassis',
+  })
 
-    if CP.carFingerprint in (CAMERA_ACC_CAR | SDGM_CAR):
-      pt_dbc = 'gm_global_a_powertrain_cam_acc'
-    elif CP.carFingerprint in CHEVROLET_VOLT:
-      pt_dbc = 'gm_global_a_powertrain_volt'
-    else:
-      pt_dbc = 'gm_global_a_powertrain_generated'
-
-    super().__init__(
-      car_docs=car_docs,
-      specs=specs,
-      dbc_dict={
-        Bus.pt: pt_dbc,
-        Bus.radar: 'gm_global_a_object',
-        Bus.chassis: 'gm_global_a_chassis'
-      }
-    )
-
+@dataclass
+class GMCAMACCPlatformConfig(PlatformConfig):
+  dbc_dict: DbcDict = field(default_factory=lambda: {
+    Bus.pt: 'gm_global_a_powertrain_cm_acc',
+    Bus.radar: 'gm_global_a_object',
+    Bus.chassis: 'gm_global_a_chassis',
+  })
 
 @dataclass
 class GMASCMPlatformConfig(GMPlatformConfig):
   # car_docs, specs, dbc_dict 는 부모에서 정의된 대로 유지
-  def __post_init__(self):
-    # super.__post_init__ 이 있다면 호출
-    try:
-      super().__post_init__()
-    except AttributeError:
-      pass
+  def init(self):
+    # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
+    #self.car_docs = []
+    pass
 
-    # ASCM 전용 dbc_dict 로 덮어쓰기
-    pt_dbc = 'gm_global_a_powertrain_volt'
-    self.dbc_dict = {
-      Bus.pt: pt_dbc,
-      Bus.radar: 'gm_global_a_object',
-      Bus.chassis: 'gm_global_a_chassis',
-    }
 
 
 @dataclass
 class GMSDGMPlatformConfig(GMPlatformConfig):
-  def __post_init__(self):
-    # 부모 플랫폼 설정 먼저 수행
-    try:
-      super().__post_init__()
-    except AttributeError:
-      pass
+  def init(self):
+    # Don't show in docs until the harness is sold. See https://github.com/commaai/openpilot/issues/32471
+    #self.car_docs = []
+    pass
+
 
 
 class CAR(Platforms):
@@ -172,7 +154,7 @@ class CAR(Platforms):
     [GMCarDocs("Chevrolet Malibu Premier 2017")],
     GMCarSpecs(mass=1496, wheelbase=2.83, steerRatio=15.8, centerToFrontRatio=0.4),
   )
-  CHEVROLET_MALIBU_2019 = GMPlatformConfig(
+  CHEVROLET_MALIBU_2019 = GMCAMACCPlatformConfig(
     [GMCarDocs("Chevrolet The New Malibu 2019")],
     GMCarSpecs(mass=1496, wheelbase=2.83, steerRatio=15.8, centerToFrontRatio=0.4),
   )
@@ -218,7 +200,7 @@ class CAR(Platforms):
     [GMCarDocs("Chevrolet Equinox 2019-22")],
     GMCarSpecs(mass=1588, wheelbase=2.72, steerRatio=14.4, centerToFrontRatio=0.4),
   )
-  CHEVROLET_TRAILBLAZER = GMPlatformConfig(
+  CHEVROLET_TRAILBLAZER = GMCAMACCPlatformConfig(
     [GMCarDocs("Chevrolet Trailblazer 2021-22")],
     GMCarSpecs(mass=1345, wheelbase=2.64, steerRatio=16.8, centerToFrontRatio=0.4, tireStiffnessFactor=1.0),
   )
@@ -226,7 +208,7 @@ class CAR(Platforms):
     [GMCarDocs("Cadillac XT4 2023", "Driver Assist Package")],
     GMCarSpecs(mass=1660, wheelbase=2.78, steerRatio=14.4, centerToFrontRatio=0.4),
   )
-  CADILLAC_CT6_2019 = GMPlatformConfig(
+  CADILLAC_CT6_2019 = GMCAMACCPlatformConfig(
     [GMCarDocs("Cadillac CT6 2019", "Driver Assist Package")],
     GMCarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
   ) 
@@ -271,7 +253,7 @@ class CAR(Platforms):
     [GMCarDocs("Cadillac CT6 No ACC")],
     CarSpecs(mass=2358, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
   )
-  CHEVROLET_TRAILBLAZER_CC = GMPlatformConfig(
+  CHEVROLET_TRAILBLAZER_CC = GMCAMACCPlatformConfig(
     [GMCarDocs("Chevrolet Trailblazer NO ACC 2021-22")],
     CHEVROLET_TRAILBLAZER.specs,
   )
@@ -287,7 +269,7 @@ class CAR(Platforms):
     [GMCarDocs("Buick Baby Enclave 2020-23", "Driver Assist Package")],
     CarSpecs(mass=2050, wheelbase=2.86, steerRatio=16.0, centerToFrontRatio=0.5),
   )
-  CHEVROLET_TRAX = GMPlatformConfig(
+  CHEVROLET_TRAX = GMCAMACCPlatformConfig(
     [GMCarDocs("Chevrolet TRAX 2024")],
     CarSpecs(mass=1365, wheelbase=2.7, steerRatio=16.1, centerToFrontRatio=0.7),
   )
