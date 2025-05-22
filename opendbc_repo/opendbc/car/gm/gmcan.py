@@ -68,7 +68,7 @@ def create_adas_keepalive(bus):
   return [CanData(0x409, dat, bus), CanData(0x40a, dat, bus)]
 
 
-def create_gas_regen_command(packer, bus, throttle, idx, enabled, at_full_stop):
+def create_gas_regen_command(packer, bus, throttle, idx, enabled, at_full_stop, CP):
   if CP.carFingerprint in (CAR.CHEVROLET_VOLT):
     values = {
       "GasRegenCmdActive": enabled,
@@ -103,7 +103,6 @@ def create_gas_regen_command(packer, bus, throttle, idx, enabled, at_full_stop):
                                  ((0x100 - dat[3] - idx) & 0xff)
 
   return packer.make_can_msg("ASCMGasRegenCmd", bus, values)
-
 
 
 def create_friction_brake_command(packer, bus, apply_brake, idx, enabled, near_stop, at_full_stop, CP):
