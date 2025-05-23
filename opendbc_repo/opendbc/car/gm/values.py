@@ -113,7 +113,7 @@ class GMPlatformConfig(PlatformConfig):
 @dataclass
 class GMCAMACCPlatformConfig(PlatformConfig):
   dbc_dict: DbcDict = field(default_factory=lambda: {
-    Bus.pt: 'gm_global_a_powertrain_cm_acc',
+    Bus.pt: 'gm_global_a_powertrain_cam_acc',
     Bus.radar: 'gm_global_a_object',
     Bus.chassis: 'gm_global_a_chassis',
   })
