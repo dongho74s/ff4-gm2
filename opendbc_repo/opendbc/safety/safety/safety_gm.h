@@ -228,7 +228,8 @@ static int gm_fwd_hook(int bus_num, int addr) {
     if (bus_num == 0) {
       // block PSCMStatus; forwarded through openpilot to hide an alert from the camera
       bool is_pscm_msg = (addr == 0x184);
-      if (!is_pscm_msg) {
+      bool is_acc_passthrough = (addr == 0x315); //0x315는 0번 버스에서 카메라버스로도 보내야 됨
+      if (!is_pscm_msg || is_acc_passthrough) {
         bus_fwd = 2;
       }
     }
