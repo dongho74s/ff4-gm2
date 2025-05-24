@@ -181,7 +181,7 @@ static bool gm_tx_hook(const CANPacket_t *to_send) {
   if (addr == 0x2CB) {
     bool apply = GET_BIT(to_send, 0U);
     if (apply) {
-        if(!controls_allowed) print("@@auto cruise control enabled....\n");
+      if(!controls_allowed) print("@@auto cruise control enabled....\n");
         controls_allowed = true;        
     }
     //ASCM차량과 CAM차량을 구분하여 가스리젠 계산하는 코드로 수정함.
@@ -237,7 +237,8 @@ static int gm_fwd_hook(int bus_num, int addr) {
       // block lkas message and acc messages if gm_cam_long, forward all others
       bool is_lkas_msg = (addr == 0x180);
       bool is_acc_msg = (addr == 0x315) || (addr == 0x2CB) || (addr == 0x370);
-      bool block_msg = is_lkas_msg || (is_acc_msg && gm_cam_long);
+      // 0x315은 gm_cam_long 여부와 상관없이 허용해서 트블도 크루즈 진입을 가능하게 해봄.
+      bool block_msg = is_lkas_msg || ((addr == 0x2CB || addr == 0x370) && gm_cam_long);
       if (!block_msg) {
         bus_fwd = 0;
       }
