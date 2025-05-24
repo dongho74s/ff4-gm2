@@ -236,7 +236,7 @@ static int gm_fwd_hook(int bus_num, int addr) {
     if (bus_num == 2) {
       // block lkas message and acc messages if gm_cam_long, forward all others
       bool is_lkas_msg = (addr == 0x180);
-      bool is_acc_msg = (addr == 0x315) || (addr == 0x2CB) || (addr == 0x370);
+      //bool is_acc_msg = (addr == 0x315) || (addr == 0x2CB) || (addr == 0x370);
       // 0x315은 gm_cam_long 여부와 상관없이 허용해서 트블도 크루즈 진입을 가능하게 해봄.
       bool block_msg = is_lkas_msg || ((addr == 0x2CB || addr == 0x370) && gm_cam_long);
       if (!block_msg) {
