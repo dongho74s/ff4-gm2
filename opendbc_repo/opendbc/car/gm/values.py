@@ -111,6 +111,14 @@ class GMPlatformConfig(PlatformConfig):
   })
 
 @dataclass
+class GMCAMACCPlatformConfig(PlatformConfig):
+  dbc_dict: DbcDict = field(default_factory=lambda: {
+    Bus.pt: 'gm_global_a_powertrain_cam_acc',
+    Bus.radar: 'gm_global_a_object',
+    Bus.chassis: 'gm_global_a_chassis',
+  })
+
+@dataclass
 class GMASCMPlatformConfig(GMPlatformConfig):
   def init(self):
     # ASCM is supported, but due to a janky install and hardware configuration, we are not showing in the car docs
@@ -346,6 +354,8 @@ FW_QUERY_CONFIG = FwQueryConfig(
   extra_ecus=[(Ecu.fwdCamera, 0x24b, None)],
 )
 
+# Kans:
+ASCM_CAR = {CAR.CHEVROLET_VOLT, CAR.CHEVROLET_TRAILBLAZER}
 EV_CAR = {CAR.CHEVROLET_VOLT, CAR.CHEVROLET_VOLT_2019, CAR.CHEVROLET_BOLT_EUV, CAR.CHEVROLET_VOLT_CC, CAR.CHEVROLET_BOLT_CC}
 CC_ONLY_CAR = {CAR.CHEVROLET_VOLT_CC, CAR.CHEVROLET_BOLT_CC, CAR.CHEVROLET_EQUINOX_CC, CAR.CHEVROLET_SUBURBAN_CC, CAR.GMC_YUKON_CC, CAR.CADILLAC_CT6_CC, CAR.CHEVROLET_TRAILBLAZER_CC, CAR.CADILLAC_XT5_CC, CAR.CHEVROLET_MALIBU_CC}
 CC_REGEN_PADDLE_CAR = {CAR.CHEVROLET_BOLT_CC}
@@ -370,3 +380,17 @@ if __name__ == "__main__":
   cars.sort()
   for c in cars:
     print(c)
+
+
+# TRAILBLAZER를 ASCM으로 분류함.
+def get_safety_config(car_model):
+  from opendbc.car.structs import CarParams
+  from opendbc.car import get_safety_config as build_safety_config  # 이름충돌 방지용 alias
+
+  # Trailblazer는 HW_ASCM 기반 → param=16 사용
+  if car_model in ASCM_CAR:
+    return [build_safety_config(CarParams.SafetyModel.gm, 16)]
+
+  # 기본 GM 차량 → param=1
+  return [build_safety_config(CarParams.SafetyModel.gm, 1)]
+
