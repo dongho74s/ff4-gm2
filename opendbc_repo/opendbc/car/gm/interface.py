@@ -107,7 +107,7 @@ class CarInterface(CarInterfaceBase):
       ret.enableGasInterceptorDEPRECATED = True
       ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.GAS_INTERCEPTOR.value
 
-    if candidate in EV_CAR:
+    if candidate in (EV_CAR, ASCM_CAR):
       ret.transmissionType = TransmissionType.direct
     else:
       ret.transmissionType = TransmissionType.automatic
@@ -292,6 +292,11 @@ class CarInterface(CarInterfaceBase):
     elif candidate in (CAR.CHEVROLET_TRAILBLAZER, CAR.CHEVROLET_TRAILBLAZER_CC):
       ret.steerActuatorDelay = 0.2
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+      ret.stoppingDecelRate = 1.0
+      ret.minEnableSpeed = -1.
+      ret.stopAccel = -0.7
+      ret.startingState = True
+      ret.startAccel = 1.9
 
     elif candidate in (CAR.CHEVROLET_SUBURBAN, CAR.CHEVROLET_SUBURBAN_CC):
       ret.steerActuatorDelay = 0.075
