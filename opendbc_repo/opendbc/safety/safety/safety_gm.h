@@ -21,7 +21,6 @@ static bool gm_pcm_cruise = false;
 static bool gm_has_acc = true;
 static bool gm_pedal_long = false;
 static bool gm_cc_long = false;
-static bool gm_skip_relay_check = false;
 static bool gm_force_ascm = false;
 
 static void handle_gm_wheel_buttons(const CANPacket_t *to_push) {
@@ -243,10 +242,9 @@ static int gm_fwd_hook(int bus_num, int addr) {
 static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_CAM = 1;
   const uint16_t GM_PARAM_CC_LONG = 4;
-  const uint16_t GM_PARAM_NO_CAMERA = 8;
-  const uint16_t GM_PARAM_HW_ASCM_LONG = 16;
-  const uint16_t GM_PARAM_NO_ACC = 32;
-  const uint16_t GM_PARAM_PEDAL_LONG = 64;  // TODO: this can be inferred
+  const uint16_t GM_PARAM_HW_ASCM_LONG = 8;
+  const uint16_t GM_PARAM_NO_ACC = 16;
+  const uint16_t GM_PARAM_PEDAL_LONG = 32;  // TODO: this can be inferred
 
   static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
     .max_gas = 3072,
@@ -316,10 +314,9 @@ static safety_config gm_init(uint16_t param) {
   gm_pedal_long = GET_FLAG(param, GM_PARAM_PEDAL_LONG);
   gm_cc_long = GET_FLAG(param, GM_PARAM_CC_LONG);
   gm_pcm_cruise = (gm_hw == GM_CAM) && !gm_cam_long && !gm_force_ascm && !gm_pedal_long;
-  gm_skip_relay_check = GET_FLAG(param, GM_PARAM_NO_CAMERA);
   gm_has_acc = !GET_FLAG(param, GM_PARAM_NO_ACC);
 
-  const uint16_t GM_PARAM_PEDAL_INTERCEPTOR = 128;
+  const uint16_t GM_PARAM_PEDAL_INTERCEPTOR = 64;
   enable_gas_interceptor = GET_FLAG(param, GM_PARAM_PEDAL_INTERCEPTOR);
   if (enable_gas_interceptor) {
       print("GM Pedal Interceptor Enabled\n");
