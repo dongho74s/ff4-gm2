@@ -188,7 +188,7 @@ class CAR(Platforms):
     [GMCarDocs("Chevrolet Equinox 2019-22")],
     GMCarSpecs(mass=1588, wheelbase=2.72, steerRatio=14.4, centerToFrontRatio=0.4),
   )
-  CHEVROLET_TRAILBLAZER = GMPlatformConfig(
+  CHEVROLET_TRAILBLAZER = GMASCMPlatformConfig(
     [GMCarDocs("Chevrolet Trailblazer 2021-22")],
     GMCarSpecs(mass=1345, wheelbase=2.64, steerRatio=16.8, centerToFrontRatio=0.4, tireStiffnessFactor=1.0),
   )
@@ -379,7 +379,7 @@ def get_safety_config(car_model):
   from opendbc.car.structs import CarParams
   from opendbc.car import get_safety_config as build_safety_config  # 이름충돌 방지용 alias
 
-  # Trailblazer는 HW_ASCM 기반 → param=16 사용
+  # Trailblazer는 HW_ASCM 기반 → param=8 사용
   if car_model in ASCM_CAR:
     return [build_safety_config(CarParams.SafetyModel.gm, 8)]
 
