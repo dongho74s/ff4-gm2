@@ -107,7 +107,7 @@ class CarInterface(CarInterfaceBase):
       ret.enableGasInterceptorDEPRECATED = True
       ret.safetyConfigs[0].safetyParam |= GMSafetyFlags.GAS_INTERCEPTOR.value
 
-    if candidate in (EV_CAR, ASCM_CAR):
+    if candidate in EV_CAR:
       ret.transmissionType = TransmissionType.direct
     else:
       ret.transmissionType = TransmissionType.automatic
