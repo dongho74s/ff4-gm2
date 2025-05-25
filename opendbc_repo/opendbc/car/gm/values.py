@@ -381,7 +381,7 @@ def get_safety_config(car_model):
 
   # Trailblazer는 HW_ASCM 기반 → param=16 사용
   if car_model in ASCM_CAR:
-    return [build_safety_config(CarParams.SafetyModel.gm, 16)]
+    return [build_safety_config(CarParams.SafetyModel.gm, 8)]
 
   # 기본 GM 차량 → param=1
   return [build_safety_config(CarParams.SafetyModel.gm, 1)]
