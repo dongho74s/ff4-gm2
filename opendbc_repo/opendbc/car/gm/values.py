@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+ï»¿from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
 import numpy as np
@@ -374,15 +374,15 @@ if __name__ == "__main__":
     print(c)
 
 
-# TRAILBLAZER¸¦ ASCMÀ¸·Î ºĞ·ùÇÔ.
+# TRAILBLAZERë¥¼ ASCMìœ¼ë¡œ ë¶„ë¥˜í•¨.
 def get_safety_config(car_model):
   from opendbc.car.structs import CarParams
-  from opendbc.car import get_safety_config as build_safety_config  # ÀÌ¸§Ãæµ¹ ¹æÁö¿ë alias
+  from opendbc.car import get_safety_config as build_safety_config  # ì´ë¦„ì¶©ëŒ ë°©ì§€ìš© alias
 
-  # Trailblazer´Â HW_ASCM ±â¹İ ¡æ param=16 »ç¿ë
+  # TrailblazerëŠ” HW_ASCM ê¸°ë°˜ â†’ param=16 ì‚¬ìš©
   if car_model in (CAR.CHEVROLET_VOLT, CAR.CHEVROLET_TRAILBLAZER):
     return [build_safety_config(CarParams.SafetyModel.gm, 16)]
 
-  # ±âº» GM Â÷·® ¡æ param=1
+  # ê¸°ë³¸ GM ì°¨ëŸ‰ â†’ param=1
   return [build_safety_config(CarParams.SafetyModel.gm, 1)]
 
