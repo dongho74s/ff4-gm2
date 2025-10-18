@@ -336,7 +336,7 @@ class CarController(CarControllerBase):
 
   # GM: AutoResume
   def brake_input(self, brake_force):
-    MAX_BRAKE = 400
+    MAX_BRAKE = 500
     ZERO_GAS = 2048
 
     if brake_force > 0.0:
